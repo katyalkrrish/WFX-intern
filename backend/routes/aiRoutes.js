@@ -1,9 +1,8 @@
 const express = require("express");
-
 const router = express.Router();
-
-const { askQuestion } = require("../controllers/aiController");
+const { askQuestion, imageSearch } = require("../controllers/aiController");
 
 router.post("/query", askQuestion);
+router.post("/image-search", imageSearch);
 
 module.exports = router;
