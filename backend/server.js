@@ -1,4 +1,5 @@
 const express = require("express");
+const cors = require("cors");
 
 const buyersRoutes = require("./routes/buyersRoutes");
 const suppliersRoutes = require("./routes/suppliersRoutes");
@@ -9,6 +10,7 @@ const dashboardRoutes = require("./routes/dashboardRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 const app = express();
 
+app.use(cors());
 app.use(express.json());
 
 app.use("/buyers", buyersRoutes);
