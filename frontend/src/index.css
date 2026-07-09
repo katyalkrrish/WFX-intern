@@ -302,7 +302,7 @@ h1 {
   padding: 24px;
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 10px;
   box-shadow: var(--shadow);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -337,11 +337,13 @@ h1 {
 }
 
 .metric-value {
-  font-size: 24px;
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--text-h);
   margin: 4px 0 0 0;
-  letter-spacing: -0.5px;
+  
+   line-height:1.1;
+    letter-spacing:-1px;
 }
 
 /* Charts Grid */

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import axios from "axios";
+import apiClient from "../services/apiClient";
 import { Search, SlidersHorizontal, ArrowUpDown, Loader, RefreshCw } from "lucide-react";
 
 export default function ProductSearch() {
@@ -30,8 +30,8 @@ export default function ProductSearch() {
 
   // Load filter values from DB on mount
   useEffect(() => {
-    axios
-      .get("http://localhost:3000/products/filters")
+    apiClient
+      .get("/products/filters")
       .then((res) => {
         setFilterMetadata(res.data);
         setGsmMin(res.data.ranges.minGsm);
@@ -67,8 +67,8 @@ export default function ProductSearch() {
       limit: 9
     };
 
-    axios
-      .get("http://localhost:3000/products/search", { params })
+    apiClient
+      .get("/products/search", { params })
       .then((res) => {
         setProducts(res.data.data);
         setPagination(res.data.pagination);

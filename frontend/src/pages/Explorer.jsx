@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import axios from "axios";
+import apiClient from "../services/apiClient";
 import { Loader, X, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function Explorer() {
@@ -24,8 +24,8 @@ export default function Explorer() {
 
   // Fetch unique categories for dropdown
   useEffect(() => {
-    axios
-      .get("http://localhost:3000/products/filters")
+    apiClient
+      .get("/products/filters")
       .then((res) => {
         setCategories(res.data.categories || []);
       })
@@ -44,8 +44,8 @@ export default function Explorer() {
       limit
     };
 
-    axios
-      .get("http://localhost:3000/products/search", { params })
+    apiClient
+      .get("/products/search", { params })
       .then((res) => {
         setProducts(res.data.data);
         setPagination(res.data.pagination);
@@ -68,7 +68,7 @@ export default function Explorer() {
     setLoadingDetails(true);
 
     try {
-      const response = await axios.get(`http://localhost:3000/products/${product.style_number}`);
+      const response = await apiClient.get(`/products/${product.style_number}`);
       setTechPack(response.data.techPack);
     } catch (err) {
       console.error("Error loading product details sheet:", err);

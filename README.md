@@ -1,77 +1,416 @@
 # WFX AI-Native ERP Explorer Platform
 
-An AI-native ERP exploration platform designed for the apparel industry. Built with Node.js/Express, PostgreSQL (Supabase), and React/Vite.
-
-## Architecture & Tech Stack
-- **Frontend**: React.js (Vite), Lucide Icons, Custom SVG Charts, Vanilla CSS (with persistent Light/Dark mode).
-- **Backend**: Node.js/Express, pg Pool, Supabase JS client.
-- **AI Integrations**: OpenRouter API (`openai/gpt-4.1-mini` for NL-to-SQL, `google/gemini-2.5-flash` for multimodal image search).
-- **Database**: Supabase PostgreSQL.
+An AI-native ERP exploration platform built for the apparel industry that enables business users to interact with ERP data using natural language. The platform combines AI-powered Natural Language to SQL (NL2SQL), intelligent product search, multimodal image search, and interactive analytics to simplify data exploration and decision-making.
 
 ---
 
-## Getting Started
+# Key Features
 
-### 1. Backend Setup
-1. Navigate to the backend folder:
-   ```bash
-   cd backend
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Configure environment variables in a `.env` file:
-   ```env
-   SUPABASE_URL=https://<your-project>.supabase.co
-   SUPABASE_SECRET_KEY=<your-secret-key>
-   OPENROUTER_API_KEY=<your-openrouter-key>
-   DATABASE_URL=postgresql://postgres.<project-ref>:<password>@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres
-   ```
-4. Start the server:
-   ```bash
-   npm run dev
-   ```
-   The backend will run on port `3000`.
-
-### 2. Frontend Setup
-1. Navigate to the frontend folder:
-   ```bash
-   cd frontend
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Start the Vite dev server:
-   ```bash
-   npm run dev
-   ```
-   Open `http://localhost:5173` in your browser.
+- AI-powered Natural Language to SQL (NL2SQL)
+- AI-generated summaries for query results
+- Interactive business analytics dashboard
+- Advanced product search with dynamic filters
+- AI-powered image search using Gemini Vision
+- Finished Goods Explorer with Tech Pack details
+- Responsive user interface with Light/Dark mode support
+- PostgreSQL database hosted on Supabase
 
 ---
 
-## Implemented Features
+# Architecture & Tech Stack
 
-### Screen 1 — Dashboard
-- Visual metrics summarizing: Total Revenue, Finished Goods count, Sales Orders count, and Suppliers/Buyers active in the system.
-- Custom dynamic SVG Donut Chart representing order status distributions (Shipped, Pending, Processing).
-- Vertical SVG Bar Chart displaying invoice amounts aggregated by payment status (Paid, Partially Paid, Unpaid).
+## Frontend
+- React.js (Vite)
+- Vanilla CSS
+- Lucide React Icons
+- Custom SVG Charts
+- Responsive UI
+- Persistent Light/Dark Theme
 
-### Screen 2 — Natural Language Query
-- A conversational interface where business users can ask questions about the ERP data.
-- Generates PostgreSQL syntax via LLM, executes it safely, and returns the query results in an interactive table alongside an AI-generated summary.
+## Backend
+- Node.js
+- Express.js
+- PostgreSQL (pg)
+- Supabase JavaScript Client
 
-### Screen 3 — Product Search
-- Real-time catalog search filtering.
-- Users can filter garments by: Category, Fabric, GSM (weight slider), Color, Season, Supplier, Print, and Price range.
-- Live results reload instantly.
+## Database
+- Supabase PostgreSQL
 
-### Screen 4 — AI Image Search
-- Supporting both visual description text and drag-and-drop file uploads.
-- Analyzes photos using Gemini Vision LLM to identify visual tags (category, fabric, print, color) and ranks similar garments from the database based on matching attributes.
+## AI Integrations
+- OpenRouter API
+- GPT-4.1-mini (Natural Language to SQL)
+- Gemini 2.5 Flash (Multimodal Image Understanding)
 
-### Screen 5 — Finished Goods Explorer
-- Paginated catalog gallery displaying style cards.
-- Supports sorting by Style code, price, and fabric thickness (GSM).
-- Clicking any card details the garment details and pulls the manufacturing **Tech Pack** specifications (construction, fabric composition, wash instructions).
+---
+
+# System Architecture
+
+```
+                 React (Vite)
+                       │
+                       ▼
+               Express.js Backend
+              ┌────────┴────────┐
+              │                 │
+              ▼                 ▼
+        OpenRouter API     PostgreSQL
+      (GPT-4.1-mini &      (Supabase)
+      Gemini 2.5 Flash)
+```
+
+---
+
+# Implemented Features
+
+## Dashboard
+
+The dashboard provides an overview of the ERP system through interactive analytics.
+
+Features include:
+
+- Total Revenue
+- Total Finished Goods
+- Total Sales Orders
+- Total Buyers
+- Total Suppliers
+- Order Status Distribution
+- Invoice Payment Status Analytics
+- Interactive SVG Charts
+
+---
+
+## Natural Language Query
+
+Business users can ask questions in plain English.
+
+Example:
+
+> Show all buyers from Canada
+
+Workflow:
+
+```
+User Question
+      │
+      ▼
+GPT-4.1-mini
+      │
+Generated SQL
+      │
+Execute on PostgreSQL
+      │
+AI Summary
+      │
+Interactive Result Table
+```
+
+The page displays:
+
+- User Question
+- Generated SQL
+- AI-generated Summary
+- Query Result Table
+
+---
+
+## Product Search
+
+Provides intelligent product discovery with multiple filters.
+
+Supported filters:
+
+- Category
+- Fabric
+- GSM
+- Color
+- Print
+- Season
+- Supplier
+- Price Range
+
+Features:
+
+- Real-time filtering
+- Pagination
+- Sorting
+- Dynamic filter generation
+
+---
+
+## AI Image Search
+
+Supports both image upload and natural language descriptions.
+
+Workflow:
+
+```
+Image / Description
+        │
+        ▼
+Gemini Vision
+        │
+Extract Visual Tags
+        │
+Search PostgreSQL
+        │
+Rank Similar Products
+```
+
+Extracted attributes include:
+
+- Category
+- Fabric
+- Color
+- Print
+- Keywords
+
+---
+
+## Finished Goods Explorer
+
+A catalog explorer for apparel products.
+
+Features:
+
+- Product Cards
+- Pagination
+- Sorting
+- Detailed Product View
+- Tech Pack Information
+
+Tech Pack includes:
+
+- Fabric Details
+- Construction
+- Wash Instructions
+
+---
+
+# Security
+
+The application implements several security best practices:
+
+- API keys stored securely using environment variables
+- Backend-only access to OpenRouter and Supabase credentials
+- AI-generated SQL restricted to SELECT statements
+- Generated SQL validated before execution
+- CORS enabled for frontend-backend communication
+- Sensitive credentials excluded from version control
+
+---
+
+# API Endpoints
+
+## Dashboard
+
+```
+GET /dashboard
+```
+
+Returns business analytics and dashboard metrics.
+
+---
+
+## Buyers
+
+```
+GET /buyers
+```
+
+Returns all buyers.
+
+---
+
+## Suppliers
+
+```
+GET /suppliers
+```
+
+Returns all suppliers.
+
+---
+
+## Products
+
+```
+GET /products
+GET /products/search
+GET /products/filters
+GET /products/:styleNumber
+```
+
+Supports advanced product exploration.
+
+---
+
+## Orders
+
+```
+GET /orders
+```
+
+Returns all sales orders.
+
+---
+
+## Invoices
+
+```
+GET /invoices
+```
+
+Returns all invoices.
+
+---
+
+## AI
+
+```
+POST /ai/query
+POST /ai/image-search
+```
+
+Supports:
+
+- Natural Language to SQL
+- AI-powered Image Search
+
+---
+
+# Getting Started
+
+## Clone Repository
+
+```bash
+git clone <repository-url>
+```
+
+---
+
+## Backend Setup
+
+Navigate to backend:
+
+```bash
+cd backend
+```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Create a `.env` file:
+
+```env
+SUPABASE_URL=https://<your-project>.supabase.co
+SUPABASE_SECRET_KEY=<your-secret-key>
+OPENROUTER_API_KEY=<your-openrouter-key>
+DATABASE_URL=postgresql://postgres.<project-ref>:<password>@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres
+```
+
+Run backend:
+
+```bash
+npm run dev
+```
+
+Backend runs on:
+
+```
+http://localhost:3000
+```
+
+---
+
+## Frontend Setup
+
+Navigate to frontend:
+
+```bash
+cd frontend
+```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run frontend:
+
+```bash
+npm run dev
+```
+
+Frontend runs on:
+
+```
+http://localhost:5173
+```
+
+---
+
+# Project Structure
+
+```
+WFX-AI-ERP/
+│
+├── backend/
+│   ├── config/
+│   ├── controllers/
+│   ├── routes/
+│   ├── services/
+│   ├── utils/
+│   └── server.js
+│
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── services/
+│   │   ├── assets/
+│   │   └── App.jsx
+│
+├── README.md
+└── .gitignore
+```
+
+---
+
+# Environment Variables
+
+Backend requires:
+
+```env
+SUPABASE_URL
+
+SUPABASE_SECRET_KEY
+
+DATABASE_URL
+
+OPENROUTER_API_KEY
+```
+
+---
+
+# Future Enhancements
+
+Potential improvements include:
+
+- User Authentication (Optional)
+- Role-Based Access Control (RBAC)
+- Query History
+- Saved Reports
+- Dashboard Export (PDF/Excel)
+- Supabase Row Level Security (RLS)
+- Advanced Analytics
+- Caching for Frequently Executed Queries
+
+---
+
+# License
+
+This project was developed as part of the **WFX AI-Native ERP Explorer Challenge** and is intended for educational and evaluation purposes.

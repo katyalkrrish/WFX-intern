@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import axios from "axios";
+import apiClient from "../services/apiClient";
 import { UploadCloud, Image as ImageIcon, Sparkles, Loader, Search, RefreshCw } from "lucide-react";
 
 export default function ImageSearch() {
@@ -78,7 +78,7 @@ export default function ImageSearch() {
         };
       }
 
-      const response = await axios.post("http://localhost:3000/ai/image-search", payload);
+      const response = await apiClient.post("/ai/image-search", payload);
       
       setLoadingStep("Querying database & weighting catalog matches...");
       setExtractedTags(response.data.tags);

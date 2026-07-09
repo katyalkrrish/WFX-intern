@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import apiClient from "../services/apiClient";
 import {
   TrendingUp,
   Users,
@@ -16,8 +16,8 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    axios
-      .get("http://localhost:3000/dashboard")
+    apiClient
+      .get("/dashboard")
       .then((res) => {
         setStats(res.data);
         setLoading(false);

@@ -1,6 +1,6 @@
-import React, { useState } from "react";
-import axios from "axios";
-import { MessageSquare, Send, Copy, Check, Table, Code, Info, Sparkles, Loader } from "lucide-react";
+import { useState } from "react";
+import { Send, Copy, Check, Table, Code, Sparkles, Loader } from "lucide-react";
+import apiClient from "../services/apiClient";
 
 export default function NLQuery() {
   const [question, setQuestion] = useState("");
@@ -8,6 +8,7 @@ export default function NLQuery() {
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState("");
   const [copiedId, setCopiedId] = useState(null);
+  const [error, setError] = useState(null);
 
   const sampleQueries = [
     "Show me all cotton shirts supplied by ABC Textiles",
@@ -27,7 +28,7 @@ export default function NLQuery() {
     setError(null);
 
     // Add user query to chat history
-    const userMessageId = Date.now();
+    const userMessageId = crypto.randomUUID();
     const newUserMessage = {
       id: userMessageId,
       role: "user",
@@ -43,7 +44,7 @@ export default function NLQuery() {
       setLoadingStep("Generating SQL with OpenRouter GPT-4o-mini...");
       await sleep(1000);
       
-      const response = await axios.post("http://localhost:3000/ai/query", {
+      const response = await apiClient.post("/ai/query", {
         question: queryToSubmit
       });
 
@@ -53,7 +54,7 @@ export default function NLQuery() {
       await sleep(500);
 
       const aiMessage = {
-        id: Date.now() + 1,
+        id: crypto.randomUUID(),
         role: "assistant",
         sql: response.data.generatedSQL,
         rows: response.data.rows,
@@ -64,7 +65,7 @@ export default function NLQuery() {
     } catch (err) {
       console.error(err);
       const errorMessage = {
-        id: Date.now() + 1,
+        id: crypto.randomUUID(),
         role: "error",
         content: err.response?.data?.message || err.message || "Failed to process query"
       };
@@ -142,6 +143,7 @@ export default function NLQuery() {
                   </button>
                 ))}
               </div>
+              {error && <p className="inline-error">{error}</p>}
             </div>
           )}
 
