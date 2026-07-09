@@ -6,11 +6,11 @@ An AI-native ERP exploration platform built for the apparel industry that enable
 
 # Key Features
 
-- AI-powered Natural Language to SQL (NL2SQL)
+- AI-powered Natural Language to SQL (NL2SQL) using Vanna AI
 - AI-generated summaries for query results
 - Interactive business analytics dashboard
 - Advanced product search with dynamic filters
-- AI-powered image search using Gemini Vision
+- AI-powered image search using OpenCLIP and Typesense vector search
 - Finished Goods Explorer with Tech Pack details
 - Responsive user interface with Light/Dark mode support
 - PostgreSQL database hosted on Supabase
@@ -35,17 +35,18 @@ An AI-native ERP exploration platform built for the apparel industry that enable
 
 ## Database
 - Supabase PostgreSQL
+- Typesense (Vector Search Engine)
 
 ## AI Integrations
-- OpenRouter API
-- GPT-4.1-mini (Natural Language to SQL)
-- Gemini 2.5 Flash (Multimodal Image Understanding)
+- Vanna AI (Natural Language to SQL)
+- OpenCLIP ViT-B-32 (Image Embeddings)
+- Local lightweight LLMs for summarization
 
 ---
 
 # System Architecture
 
-```
+```text
                  React (Vite)
                        │
                        ▼
@@ -53,9 +54,10 @@ An AI-native ERP exploration platform built for the apparel industry that enable
               ┌────────┴────────┐
               │                 │
               ▼                 ▼
-        OpenRouter API     PostgreSQL
-      (GPT-4.1-mini &      (Supabase)
-      Gemini 2.5 Flash)
+        Vanna Service      PostgreSQL
+       (Python Flask,      (Supabase)
+       Typesense, 
+       OpenCLIP)
 ```
 
 ---
@@ -89,17 +91,15 @@ Example:
 
 Workflow:
 
-```
+```text
 User Question
       │
       ▼
-GPT-4.1-mini
+Vanna AI (Python Service)
       │
 Generated SQL
       │
-Execute on PostgreSQL
-      │
-AI Summary
+Express Validates & Executes
       │
 Interactive Result Table
 ```
@@ -143,26 +143,20 @@ Supports both image upload and natural language descriptions.
 
 Workflow:
 
-```
+```text
 Image / Description
         │
         ▼
-Gemini Vision
+OpenCLIP (Python Service)
         │
-Extract Visual Tags
+Vector Embedding (ViT-B-32)
         │
-Search PostgreSQL
+Search Typesense
         │
 Rank Similar Products
 ```
 
-Extracted attributes include:
-
-- Category
-- Fabric
-- Color
-- Print
-- Keywords
+Products are matched based on cosine similarity of their image/text embeddings.
 
 ---
 
@@ -191,7 +185,7 @@ Tech Pack includes:
 The application implements several security best practices:
 
 - API keys stored securely using environment variables
-- Backend-only access to OpenRouter and Supabase credentials
+- Backend-only access to Typesense and Supabase credentials
 - AI-generated SQL restricted to SELECT statements
 - Generated SQL validated before execution
 - CORS enabled for frontend-backend communication
@@ -307,8 +301,10 @@ Create a `.env` file:
 ```env
 SUPABASE_URL=https://<your-project>.supabase.co
 SUPABASE_SECRET_KEY=<your-secret-key>
-OPENROUTER_API_KEY=<your-openrouter-key>
 DATABASE_URL=postgresql://postgres.<project-ref>:<password>@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres
+TYPESENSE_API_KEY=<your-typesense-key>
+TYPESENSE_HOST=<your-typesense-host>
+PYTHON_SERVICE_URL=http://localhost:5000
 ```
 
 Run backend:
@@ -319,8 +315,43 @@ npm run dev
 
 Backend runs on:
 
-```
+```text
 http://localhost:3000
+```
+
+---
+
+## Python Microservice (Vanna AI & OpenCLIP) Setup
+
+Navigate to service:
+
+```bash
+cd vanna-service
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Run indexing script to populate Typesense:
+
+```bash
+# Ensure DATABASE_URL and TYPESENSE env vars are set
+python index_data.py
+```
+
+Run service:
+
+```bash
+python app.py
+```
+
+Service runs on:
+
+```text
+http://localhost:5000
 ```
 
 ---
@@ -363,16 +394,15 @@ WFX-AI-ERP/
 │   ├── controllers/
 │   ├── routes/
 │   ├── services/
-│   ├── utils/
 │   └── server.js
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   ├── assets/
-│   │   └── App.jsx
+│
+├── vanna-service/
+│   ├── app.py
+│   ├── index_data.py
+│   └── requirements.txt
 │
 ├── README.md
 └── .gitignore
@@ -386,12 +416,19 @@ Backend requires:
 
 ```env
 SUPABASE_URL
-
 SUPABASE_SECRET_KEY
-
 DATABASE_URL
+TYPESENSE_API_KEY
+TYPESENSE_HOST
+PYTHON_SERVICE_URL
+```
 
-OPENROUTER_API_KEY
+Python Service requires:
+
+```env
+DATABASE_URL
+TYPESENSE_API_KEY
+TYPESENSE_HOST
 ```
 
 ---
