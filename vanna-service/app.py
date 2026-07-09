@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+
+load_dotenv()
 import os
 import json
 import psycopg2
@@ -21,26 +24,81 @@ print("Loading OpenCLIP ViT-B-32 (Text Encoder)...")
 clip_model, _, _ = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai', device=device)
 clip_tokenizer = open_clip.get_tokenizer('ViT-B-32')
 
-# 2. Vanna Setup using Official GoogleGeminiChat
+# 2. Vanna Setup using Official GoogleGeminiChat + ChromaDB
 class SimplifiedVanna(ChromaDB_VectorStore, GoogleGeminiChat):
     def __init__(self, config=None):
         ChromaDB_VectorStore.__init__(self, config=config)
         GoogleGeminiChat.__init__(self, config=config)
 
+    def submit_prompt(self, prompt, **kwargs) -> str:
+        """
+        Override to properly format the prompt for Gemini.
+        
+        Vanna's get_sql_prompt() returns a list of strings (since GoogleGeminiChat's
+        system_message/user_message/assistant_message all return plain strings).
+        
+        The first string is the system prompt which already contains the DDL and
+        documentation injected by add_ddl_to_prompt() and add_documentation_to_prompt().
+        
+        Subsequent strings are alternating user questions and assistant SQL answers
+        from similar training examples, followed by the actual user question.
+        
+        We concatenate them into a single well-structured prompt so Gemini sees
+        the full context including schema, docs, and examples.
+        """
+        if isinstance(prompt, list) and len(prompt) > 0:
+            # Build a single structured prompt
+            parts = []
+            # First element is the system prompt with DDL + docs
+            parts.append(prompt[0])
+            
+            # Remaining elements alternate: user question, assistant SQL, ..., final user question
+            # Label them so Gemini understands the structure
+            i = 1
+            while i < len(prompt) - 1:
+                # This is a training example pair
+                parts.append(f"\nQuestion: {prompt[i]}")
+                i += 1
+                if i < len(prompt) - 1:
+                    parts.append(f"SQL: {prompt[i]}")
+                    i += 1
+            
+            # Final element is the actual user question
+            if i < len(prompt):
+                parts.append(f"\nGenerate SQL for this question: {prompt[i]}")
+            
+            combined_prompt = "\n".join(parts)
+            
+            print(f"\n{'='*60}")
+            print(f"VANNA PROMPT DEBUG")
+            print(f"{'='*60}")
+            print(f"Prompt length: {len(combined_prompt)} chars")
+            print(f"Number of parts from Vanna: {len(prompt)}")
+            print(f"First 500 chars of prompt:\n{combined_prompt[:500]}")
+            print(f"{'='*60}\n")
+            
+            response = self.chat_model.generate_content(
+                combined_prompt,
+                generation_config={"temperature": self.temperature},
+            )
+            return response.text
+        else:
+            # Fallback to parent behavior
+            return super().submit_prompt(prompt, **kwargs)
+
 gemini_api_key = os.environ.get('GEMINI_API_KEY')
 if not gemini_api_key:
     print("WARNING: GEMINI_API_KEY is not set. Vanna SQL generation will fail.")
-else:
-    genai.configure(api_key=gemini_api_key)
 
 vn = SimplifiedVanna(config={
-    'api_key': gemini_api_key,
-    'model': 'gemini-2.5-flash',
-    'path': './vanna_chroma_db'
+    "api_key": gemini_api_key,
+    "model_name": "gemini-2.5-flash",
+    "path": "./vanna_chroma_db"
 })
 
 # Setup DB Connection for training
 DB_URL = os.environ.get("DATABASE_URL")
+
 
 @app.route("/train", methods=["POST"])
 def train():
@@ -69,16 +127,88 @@ def train():
             vn.train(ddl=ddl_str)
             
         conn.close()
+
+        # Business Documentation
+        vn.train(documentation="""
+        The finished_goods table stores apparel inventory.
+
+        Important columns:
+        style_name -> Product name
+        category -> Apparel type such as Shirt, Hoodie, Jacket, Trouser, T-Shirt
+        color -> Product color
+        print -> Pattern like Plain, Striped, Checked, Floral, Printed
+        fabric -> Cotton, Denim, Polyester, Linen etc.
+        brand -> Brand name
+        supplier -> Supplier company
+        season -> Summer, Winter, Spring etc.
+        selling_price -> Selling price
+        cost -> Cost price
+
+        Use ILIKE for text searches whenever possible.
+        Use LOWER(column)=LOWER(value) if exact matching is required.
+        """)
+
+        vn.train(documentation="The buyers table contains customer information with columns: buyer_id, company_name, country, buyer_category.")
+        vn.train(documentation="The suppliers table contains vendor information with columns: supplier_id, company_name, country, contact, lead_time_days, rating.")
+        vn.train(documentation="The sales_orders table links buyers to finished_goods with columns: order_number, buyer, style_number, quantity, unit_price, shipment_date, status.")
+        vn.train(documentation="The sales_invoices table links to sales_orders for payment tracking with columns: invoice_number, sales_order, amount, currency, payment_status.")
+
+        # Training Examples (question -> SQL pairs)
+        examples = [
+            ("Show all blue shirts", "SELECT * FROM finished_goods WHERE LOWER(category)='shirt' AND LOWER(color)='blue';"),
+            ("Show blue striped shirts", "SELECT * FROM finished_goods WHERE LOWER(category)='shirt' AND LOWER(color)='blue' AND LOWER(print)='striped';"),
+            ("Show all hoodies", "SELECT * FROM finished_goods WHERE LOWER(category)='hoodie';"),
+            ("Show black hoodies", "SELECT * FROM finished_goods WHERE LOWER(category)='hoodie' AND LOWER(color)='black';"),
+            ("Show denim products", "SELECT * FROM finished_goods WHERE LOWER(fabric)='denim';"),
+            ("Show cotton shirts", "SELECT * FROM finished_goods WHERE LOWER(category)='shirt' AND LOWER(fabric)='cotton';"),
+            ("Show products under 1000", "SELECT * FROM finished_goods WHERE selling_price < 1000;"),
+            ("Show products above 3000", "SELECT * FROM finished_goods WHERE selling_price > 3000;"),
+            ("Show Nike products", "SELECT * FROM finished_goods WHERE LOWER(brand)='nike';"),
+            ("Show Adidas hoodies", "SELECT * FROM finished_goods WHERE LOWER(brand)='adidas' AND LOWER(category)='hoodie';"),
+            ("Show summer collection", "SELECT * FROM finished_goods WHERE LOWER(season)='summer';"),
+            ("Show winter jackets", "SELECT * FROM finished_goods WHERE LOWER(category)='jacket' AND LOWER(season)='winter';"),
+            ("Show products supplied by ABC Textiles", "SELECT * FROM finished_goods WHERE supplier ILIKE '%ABC Textiles%';"),
+            ("Count all shirts", "SELECT COUNT(*) FROM finished_goods WHERE LOWER(category)='shirt';"),
+            ("Average selling price of shirts", "SELECT AVG(selling_price) FROM finished_goods WHERE LOWER(category)='shirt';"),
+            ("Most expensive product", "SELECT * FROM finished_goods ORDER BY selling_price DESC LIMIT 1;"),
+            ("Cheapest product", "SELECT * FROM finished_goods ORDER BY selling_price ASC LIMIT 1;"),
+            ("Top 10 expensive products", "SELECT * FROM finished_goods ORDER BY selling_price DESC LIMIT 10;"),
+            ("List all brands", "SELECT DISTINCT brand FROM finished_goods ORDER BY brand;"),
+            ("List all categories", "SELECT DISTINCT category FROM finished_goods ORDER BY category;"),
+            ("Show all buyers", "SELECT * FROM buyers;"),
+            ("Show buyers from Canada", "SELECT * FROM buyers WHERE LOWER(country)='canada';"),
+            ("Show all suppliers", "SELECT * FROM suppliers;"),
+            ("Total revenue", "SELECT SUM(amount) as total_revenue FROM sales_invoices;"),
+            ("Show unpaid invoices", "SELECT * FROM sales_invoices WHERE LOWER(payment_status)='unpaid';"),
+            ("Show all orders", "SELECT * FROM sales_orders;"),
+            ("Show pending orders", "SELECT * FROM sales_orders WHERE LOWER(status)='pending';"),
+        ]
         
-        vn.train(documentation="The buyers table contains customer information.")
-        vn.train(documentation="The suppliers table contains vendor information.")
-        vn.train(documentation="The finished_goods table contains apparel products. Products have a match_score when doing vector searches, but inside Postgres use standard filtering.")
-        vn.train(documentation="The sales_orders table links buyers to finished_goods.")
-        vn.train(documentation="The sales_invoices table links to sales_orders for payment tracking.")
+        for question, sql in examples:
+            vn.train(question=question, sql=sql)
+
+        # Verify training
+        training_data = vn.get_training_data()
+        ddl_count = len(training_data[training_data['training_data_type'] == 'ddl'])
+        doc_count = len(training_data[training_data['training_data_type'] == 'documentation'])
+        sql_count = len(training_data[training_data['training_data_type'] == 'sql'])
         
-        return jsonify({"success": True, "message": "Vanna successfully trained on PostgreSQL schema."})
+        print(f"Training complete: {ddl_count} DDL, {doc_count} docs, {sql_count} SQL examples")
+        
+        return jsonify({
+            "success": True, 
+            "message": "Vanna successfully trained on PostgreSQL schema.",
+            "stats": {
+                "ddl_entries": ddl_count,
+                "documentation_entries": doc_count,
+                "sql_examples": sql_count
+            }
+        })
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"success": False, "message": str(e)}), 500
+
 
 @app.route("/nl2sql", methods=["POST"])
 def nl2sql():
@@ -88,10 +218,30 @@ def nl2sql():
         return jsonify({"success": False, "message": "Question is required"}), 400
     
     try:
+        # Debug: check what Vanna retrieves before generating
+        ddl_list = vn.get_related_ddl(question)
+        doc_list = vn.get_related_documentation(question)
+        sql_list = vn.get_similar_question_sql(question)
+        
+        print(f"\n--- Vanna Retrieval Debug for: '{question}' ---")
+        print(f"  DDL entries retrieved: {len(ddl_list)}")
+        print(f"  Documentation entries retrieved: {len(doc_list)}")
+        print(f"  Similar SQL examples retrieved: {len(sql_list)}")
+        if ddl_list:
+            print(f"  First DDL: {ddl_list[0][:100]}...")
+        if doc_list:
+            print(f"  First Doc: {doc_list[0][:100]}...")
+        if sql_list:
+            print(f"  First SQL example: {json.dumps(sql_list[0])[:100]}...")
+        print(f"--- End Retrieval Debug ---\n")
+        
         sql = vn.generate_sql(question=question)
         return jsonify({"success": True, "generatedSQL": sql})
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"success": False, "message": str(e)}), 500
+
 
 @app.route("/summarize", methods=["POST"])
 def summarize():
@@ -112,6 +262,7 @@ def summarize():
         print("Summarizer error:", e)
         return jsonify({"success": True, "summary": f"Found {len(rows)} results for your question."})
 
+
 @app.route("/embed", methods=["POST"])
 def embed():
     data = request.json
@@ -131,6 +282,7 @@ def embed():
             return jsonify({"success": True, "embedding": embedding})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
