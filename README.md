@@ -395,7 +395,15 @@ OPENROUTER_API_KEY
 ```
 
 ---
+## Live Demo
 
+Frontend:
+https://wfx-intern.vercel.app/
+
+Backend:
+https://wfx-intern.onrender.com
+
+---
 # Future Enhancements
 
 Potential improvements include:
