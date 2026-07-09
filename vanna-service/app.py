@@ -8,11 +8,9 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import torch
 import open_clip
-import google.generativeai as genai
-
-# Vanna AI imports
+import openai
 from vanna.chromadb import ChromaDB_VectorStore
-from vanna.google import GoogleGeminiChat
+from vanna.openai import OpenAI_Chat
 
 app = Flask(__name__)
 CORS(app)
@@ -25,78 +23,39 @@ clip_model, _, _ = open_clip.create_model_and_transforms('ViT-B-32', pretrained=
 clip_tokenizer = open_clip.get_tokenizer('ViT-B-32')
 
 # 2. Vanna Setup using Official GoogleGeminiChat + ChromaDB
-class SimplifiedVanna(ChromaDB_VectorStore, GoogleGeminiChat):
+class SimplifiedVanna(ChromaDB_VectorStore, OpenAI_Chat):
     def __init__(self, config=None):
         ChromaDB_VectorStore.__init__(self, config=config)
-        GoogleGeminiChat.__init__(self, config=config)
+        OpenAI_Chat.__init__(self, config=config)
+        self.or_client = openai.OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=config.get("api_key"),
+        )
+        self.model_name = config.get("model")
 
     def submit_prompt(self, prompt, **kwargs) -> str:
-        """
-        Override to properly format the prompt for Gemini.
-        
-        Vanna's get_sql_prompt() returns a list of strings (since GoogleGeminiChat's
-        system_message/user_message/assistant_message all return plain strings).
-        
-        The first string is the system prompt which already contains the DDL and
-        documentation injected by add_ddl_to_prompt() and add_documentation_to_prompt().
-        
-        Subsequent strings are alternating user questions and assistant SQL answers
-        from similar training examples, followed by the actual user question.
-        
-        We concatenate them into a single well-structured prompt so Gemini sees
-        the full context including schema, docs, and examples.
-        """
-        if isinstance(prompt, list) and len(prompt) > 0:
-            # Build a single structured prompt
-            parts = []
-            # First element is the system prompt with DDL + docs
-            parts.append(prompt[0])
+        if isinstance(prompt, list):
+            print(f"\nSQL Prompt (OpenAI Format):\n{json.dumps(prompt, indent=2)}\n")
             
-            # Remaining elements alternate: user question, assistant SQL, ..., final user question
-            # Label them so Gemini understands the structure
-            i = 1
-            while i < len(prompt) - 1:
-                # This is a training example pair
-                parts.append(f"\nQuestion: {prompt[i]}")
-                i += 1
-                if i < len(prompt) - 1:
-                    parts.append(f"SQL: {prompt[i]}")
-                    i += 1
-            
-            # Final element is the actual user question
-            if i < len(prompt):
-                parts.append(f"\nGenerate SQL for this question: {prompt[i]}")
-            
-            combined_prompt = "\n".join(parts)
-            
-            print(f"\n{'='*60}")
-            print(f"VANNA PROMPT DEBUG")
-            print(f"{'='*60}")
-            print(f"Prompt length: {len(combined_prompt)} chars")
-            print(f"Number of parts from Vanna: {len(prompt)}")
-            print(f"First 500 chars of prompt:\n{combined_prompt[:500]}")
-            print(f"{'='*60}\n")
-            print(f"\nSQL Prompt:\n{combined_prompt}\n")
-            
-            response = self.chat_model.generate_content(
-                combined_prompt,
-                generation_config={"temperature": self.temperature},
+            response = self.or_client.chat.completions.create(
+                model=self.model_name,
+                messages=prompt,
+                temperature=self.temperature
             )
-            
-            print(f"\nLLM Response:\n{response.text}\n")
-            
-            return response.text
+            text = response.choices[0].message.content
+            print(f"\nLLM Response:\n{text}\n")
+            return text
         else:
             # Fallback to parent behavior
             return super().submit_prompt(prompt, **kwargs)
 
-gemini_api_key = os.environ.get('GEMINI_API_KEY')
-if not gemini_api_key:
-    print("WARNING: GEMINI_API_KEY is not set. Vanna SQL generation will fail.")
+openrouter_api_key = os.environ.get('OPENROUTER_API_KEY')
+if not openrouter_api_key:
+    print("WARNING: OPENROUTER_API_KEY is not set. Vanna SQL generation will fail.")
 
 vn = SimplifiedVanna(config={
-    "api_key": gemini_api_key,
-    "model_name": "gemini-3.5-flash",
+    "api_key": openrouter_api_key,
+    "model": "openai/gpt-4.1-mini",
     "path": "./vanna_chroma_db"
 })
 
@@ -260,9 +219,13 @@ def nl2sql():
         else:
             sql = sql.replace("```", "").strip()
             
-        sql_match2 = re.search(r'(SELECT.*?;?)', sql, re.DOTALL | re.IGNORECASE)
+        sql_match2 = re.search(r'(SELECT.*)', sql, re.DOTALL | re.IGNORECASE)
         if sql_match2:
             sql = sql_match2.group(1).strip()
+            
+        # Ensure it ends with a semicolon
+        if not sql.endswith(';'):
+            sql += ';'
             
         print(f"\nGenerated SQL (Extracted/Parsed):\n{sql}\n")
         
@@ -283,14 +246,20 @@ def summarize():
     rows = data.get("rows", [])
     
     try:
-        if not gemini_api_key:
-            raise Exception("GEMINI_API_KEY is not set.")
+        if not openrouter_api_key:
+            raise Exception("OPENROUTER_API_KEY is not set.")
             
-        model = genai.GenerativeModel('gemini-3.5-flash')
+        client = openai.OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=openrouter_api_key,
+        )
         prompt = f"Summarize these database query results in 1-2 simple sentences.\nQuestion: {question}\nData: {json.dumps(rows[:3])}"
-        response = model.generate_content(prompt)
+        response = client.chat.completions.create(
+            model="openai/gpt-4.1-mini",
+            messages=[{"role": "user", "content": prompt}]
+        )
         
-        return jsonify({"success": True, "summary": response.text.strip()})
+        return jsonify({"success": True, "summary": response.choices[0].message.content.strip()})
     except Exception as e:
         print("Summarizer error:", e)
         return jsonify({"success": True, "summary": f"Found {len(rows)} results for your question."})
