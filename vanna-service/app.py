@@ -44,9 +44,23 @@ class LocalVanna(ChromaDB_VectorStore, VannaBase):
             print("Failed to load SQL model, falling back to flan-t5-small:", e)
             self.pipe = pipeline("text2text-generation", model="google/flan-t5-small", device=device)
         
+    def system_message(self, message: str) -> any:
+        return {"role": "system", "content": message}
+
+    def user_message(self, message: str) -> any:
+        return {"role": "user", "content": message}
+
+    def assistant_message(self, message: str) -> any:
+        return {"role": "assistant", "content": message}
+
     def submit_prompt(self, prompt, **kwargs):
+        # prompt is a list of dicts. We convert it to a single string for our local text2text model.
+        prompt_str = ""
+        for msg in prompt:
+            prompt_str += f"{msg['role'].upper()}: {msg['content']}\n"
+            
         # Generate SQL from the prompt
-        res = self.pipe(prompt, max_length=150)
+        res = self.pipe(prompt_str, max_length=150)
         generated_text = res[0]['generated_text']
         
         # Vanna expects pure SQL returned. The model might add extra text, 
