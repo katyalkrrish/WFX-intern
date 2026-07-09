@@ -40,7 +40,6 @@ async function summarizeResult(question, rows) {
 async function getEmbedding(image, text) {
   try {
     const response = await axios.post(`${PYTHON_SERVICE_URL}/embed`, { 
-        image: image, 
         text: text 
     });
     return response.data.embedding;

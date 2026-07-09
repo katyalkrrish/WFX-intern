@@ -135,19 +135,11 @@ def embed():
     
     try:
         with torch.no_grad():
-            if image_base64:
-                if "," in image_base64:
-                    image_base64 = image_base64.split(",")[1]
-                
-                image_bytes = base64.b64decode(image_base64)
-                img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-                img_tensor = preprocess(img).unsqueeze(0).to(device)
-                features = clip_model.encode_image(img_tensor)
-            elif text_query:
+            if text_query:
                 text_tokens = clip_tokenizer([text_query]).to(device)
                 features = clip_model.encode_text(text_tokens)
             else:
-                return jsonify({"success": False, "message": "Provide image or text"}), 400
+                return jsonify({"success": False, "message": "Provide text query for search (Phase 1 supports text-to-image only)"}), 400
                 
             features /= features.norm(dim=-1, keepdim=True)
             embedding = features.cpu().numpy()[0].tolist()

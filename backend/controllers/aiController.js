@@ -55,10 +55,10 @@ const imageSearch = async (req, res) => {
   try {
     const { image, mimeType, q } = req.body;
 
-    if (!image && !q) {
+    if (!q) {
       return res.status(400).json({
         success: false,
-        message: "Either image or text query is required for image search",
+        message: "Provide text query for search (Phase 1 supports text-to-image only)",
       });
     }
 
