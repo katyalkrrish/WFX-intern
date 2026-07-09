@@ -53,7 +53,11 @@ def main():
     print("Connecting to DB...")
     conn = psycopg2.connect(DB_URL)
     cursor = conn.cursor()
-    cursor.execute("SELECT style_number, style_name, category, fabric, color, print, brand, image_url FROM finished_goods")
+    # 13 columns matching the exact PostgreSQL schema
+    cursor.execute("""
+        SELECT style_number, style_name, category, fabric, gsm, color, print, season, brand, supplier, cost, selling_price, image_url 
+        FROM finished_goods
+    """)
     products = cursor.fetchall()
     conn.close()
 
@@ -65,9 +69,15 @@ def main():
             {"name": "style_name", "type": "string"},
             {"name": "category", "type": "string", "facet": True},
             {"name": "fabric", "type": "string", "facet": True},
+            {"name": "gsm", "type": "int32", "optional": True},
             {"name": "color", "type": "string", "facet": True},
             {"name": "print", "type": "string"},
+            {"name": "season", "type": "string", "optional": True},
             {"name": "brand", "type": "string"},
+            {"name": "supplier", "type": "string", "optional": True},
+            {"name": "cost", "type": "float", "optional": True},
+            {"name": "selling_price", "type": "float", "optional": True},
+            {"name": "image_url", "type": "string", "optional": True},
             {"name": "embedding", "type": "float[]", "num_dim": 512}
         ]
     }
@@ -84,7 +94,7 @@ def main():
     # 3. Index Products
     documents = []
     for p in products:
-        style_number, style_name, category, fabric, color, print_type, brand, image_url = p
+        style_number, style_name, category, fabric, gsm, color, print_type, season, brand, supplier, cost, selling_price, image_url = p
         
         print(f"Processing {style_number}...")
         emb = None
@@ -101,9 +111,15 @@ def main():
             "style_name": style_name or "",
             "category": category or "",
             "fabric": fabric or "",
+            "gsm": gsm or 0,
             "color": color or "",
             "print": print_type or "",
+            "season": season or "",
             "brand": brand or "",
+            "supplier": supplier or "",
+            "cost": float(cost) if cost else 0.0,
+            "selling_price": float(selling_price) if selling_price else 0.0,
+            "image_url": image_url or "",
             "embedding": emb
         }
         documents.append(doc)
