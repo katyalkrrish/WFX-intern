@@ -1,74 +1,43 @@
 import os
-import io
 import json
-import base64
 import psycopg2
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from PIL import Image
 import torch
 import open_clip
+import google.generativeai as genai
 
 # Vanna AI imports
-from vanna.base import VannaBase
 from vanna.chromadb import ChromaDB_VectorStore
-from transformers import pipeline
+from vanna.google import GoogleGeminiChat
 
 app = Flask(__name__)
 CORS(app)
 
 device = "cpu"
 
-# 1. OpenCLIP Setup
-print("Loading OpenCLIP ViT-B-32...")
-clip_model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai', device=device)
+# 1. OpenCLIP Setup (Text-to-Image only for Phase 1)
+print("Loading OpenCLIP ViT-B-32 (Text Encoder)...")
+clip_model, _, _ = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai', device=device)
 clip_tokenizer = open_clip.get_tokenizer('ViT-B-32')
 
-# 2. Summarizer Setup
-print("Loading summarizer...")
-summarizer = pipeline("summarization", model="google/flan-t5-small", device=device)
-
-# 3. Vanna Setup with Local Open-Source LLM
-class LocalVanna(ChromaDB_VectorStore, VannaBase):
+# 2. Vanna Setup using Official GoogleGeminiChat
+class SimplifiedVanna(ChromaDB_VectorStore, GoogleGeminiChat):
     def __init__(self, config=None):
         ChromaDB_VectorStore.__init__(self, config=config)
-        VannaBase.__init__(self, config=config)
-        
-        # We use a SQL-focused lightweight model.
-        # NOTE: t5-base is ~850MB which may exceed Render Free's 512MB RAM limit during generation.
-        # If deployment fails due to OOM, consider downgrading to a smaller generic model or using quantization.
-        print("Loading local SQL LLM...")
-        try:
-            self.pipe = pipeline("text2text-generation", model="mrm8488/t5-base-finetuned-wikiSQL", device=device)
-        except Exception as e:
-            print("Failed to load SQL model, falling back to flan-t5-small:", e)
-            self.pipe = pipeline("text2text-generation", model="google/flan-t5-small", device=device)
-        
-    def system_message(self, message: str) -> any:
-        return {"role": "system", "content": message}
+        GoogleGeminiChat.__init__(self, config=config)
 
-    def user_message(self, message: str) -> any:
-        return {"role": "user", "content": message}
+gemini_api_key = os.environ.get('GEMINI_API_KEY')
+if not gemini_api_key:
+    print("WARNING: GEMINI_API_KEY is not set. Vanna SQL generation will fail.")
+else:
+    genai.configure(api_key=gemini_api_key)
 
-    def assistant_message(self, message: str) -> any:
-        return {"role": "assistant", "content": message}
-
-    def submit_prompt(self, prompt, **kwargs):
-        # prompt is a list of dicts. We convert it to a single string for our local text2text model.
-        prompt_str = ""
-        for msg in prompt:
-            prompt_str += f"{msg['role'].upper()}: {msg['content']}\n"
-            
-        # Generate SQL from the prompt
-        res = self.pipe(prompt_str, max_length=150)
-        generated_text = res[0]['generated_text']
-        
-        # Vanna expects pure SQL returned. The model might add extra text, 
-        # but Vanna's extract_sql will clean it.
-        return generated_text
-
-# Initialize Vanna with persistent storage
-vn = LocalVanna(config={'path': './vanna_chroma_db'})
+vn = SimplifiedVanna(config={
+    'api_key': gemini_api_key,
+    'model': 'gemini-2.5-flash',
+    'path': './vanna_chroma_db'
+})
 
 # Setup DB Connection for training
 DB_URL = os.environ.get("DATABASE_URL")
@@ -77,13 +46,11 @@ DB_URL = os.environ.get("DATABASE_URL")
 def train():
     """
     Extracts schema from PostgreSQL and trains Vanna's local ChromaDB.
-    This should be called when the schema changes or on first deployment if persistent storage is lost.
     """
     if not DB_URL:
         return jsonify({"success": False, "message": "DATABASE_URL is not set"}), 500
         
     try:
-        # Vanna's automatic training via information_schema
         print("Connecting to PostgreSQL for training...")
         conn = psycopg2.connect(DB_URL)
         cursor = conn.cursor()
@@ -91,7 +58,6 @@ def train():
         tables = ['buyers', 'suppliers', 'finished_goods', 'sales_orders', 'sales_invoices']
         
         for table in tables:
-            # Extract DDL-like information
             cursor.execute(f"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '{table}'")
             columns = cursor.fetchall()
             
@@ -104,10 +70,9 @@ def train():
             
         conn.close()
         
-        # Add basic documentation
         vn.train(documentation="The buyers table contains customer information.")
         vn.train(documentation="The suppliers table contains vendor information.")
-        vn.train(documentation="The finished_goods table contains apparel products.")
+        vn.train(documentation="The finished_goods table contains apparel products. Products have a match_score when doing vector searches, but inside Postgres use standard filtering.")
         vn.train(documentation="The sales_orders table links buyers to finished_goods.")
         vn.train(documentation="The sales_invoices table links to sales_orders for payment tracking.")
         
@@ -135,16 +100,21 @@ def summarize():
     rows = data.get("rows", [])
     
     try:
-        input_text = f"Question: {question}. Data: {json.dumps(rows[:3])}. Summarize."
-        summary_result = summarizer(input_text, max_length=50, min_length=10, do_sample=False)
-        return jsonify({"success": True, "summary": summary_result[0]['summary_text']})
+        if not gemini_api_key:
+            raise Exception("GEMINI_API_KEY is not set.")
+            
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        prompt = f"Summarize these database query results in 1-2 simple sentences.\nQuestion: {question}\nData: {json.dumps(rows[:3])}"
+        response = model.generate_content(prompt)
+        
+        return jsonify({"success": True, "summary": response.text.strip()})
     except Exception as e:
+        print("Summarizer error:", e)
         return jsonify({"success": True, "summary": f"Found {len(rows)} results for your question."})
 
 @app.route("/embed", methods=["POST"])
 def embed():
     data = request.json
-    image_base64 = data.get("image")
     text_query = data.get("text")
     
     try:

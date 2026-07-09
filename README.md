@@ -429,6 +429,7 @@ Python Service requires:
 DATABASE_URL
 TYPESENSE_API_KEY
 TYPESENSE_HOST
+GEMINI_API_KEY
 ```
 
 ---
