@@ -76,11 +76,15 @@ class SimplifiedVanna(ChromaDB_VectorStore, GoogleGeminiChat):
             print(f"Number of parts from Vanna: {len(prompt)}")
             print(f"First 500 chars of prompt:\n{combined_prompt[:500]}")
             print(f"{'='*60}\n")
+            print(f"\nSQL Prompt:\n{combined_prompt}\n")
             
             response = self.chat_model.generate_content(
                 combined_prompt,
                 generation_config={"temperature": self.temperature},
             )
+            
+            print(f"\nLLM Response:\n{response.text}\n")
+            
             return response.text
         else:
             # Fallback to parent behavior
@@ -92,7 +96,7 @@ if not gemini_api_key:
 
 vn = SimplifiedVanna(config={
     "api_key": gemini_api_key,
-    "model_name": "gemini-2.5-flash",
+    "model_name": "gemini-3.5-flash",
     "path": "./vanna_chroma_db"
 })
 
@@ -235,7 +239,36 @@ def nl2sql():
             print(f"  First SQL example: {json.dumps(sql_list[0])[:100]}...")
         print(f"--- End Retrieval Debug ---\n")
         
-        sql = vn.generate_sql(question=question)
+        # Normalize singular/plural variations
+        import re
+        norm_question = re.sub(r'\bshirts\b', 'shirt', question, flags=re.IGNORECASE)
+        norm_question = re.sub(r'\bhoodies\b', 'hoodie', norm_question, flags=re.IGNORECASE)
+        norm_question = re.sub(r'\bjackets\b', 'jacket', norm_question, flags=re.IGNORECASE)
+        norm_question = re.sub(r'\btrousers\b', 'trouser', norm_question, flags=re.IGNORECASE)
+        
+        sql = vn.generate_sql(question=norm_question)
+        
+        print(f"\nGenerated SQL (Raw from Vanna):\n{sql}\n")
+        
+        # Cleanup markdown and extra text
+        if "```sql" in sql:
+            sql_match = re.search(r'```sql\n(.*?)\n```', sql, re.DOTALL | re.IGNORECASE)
+            if sql_match:
+                sql = sql_match.group(1).strip()
+            else:
+                sql = sql.replace("```sql", "").replace("```", "").strip()
+        else:
+            sql = sql.replace("```", "").strip()
+            
+        sql_match2 = re.search(r'(SELECT.*?;?)', sql, re.DOTALL | re.IGNORECASE)
+        if sql_match2:
+            sql = sql_match2.group(1).strip()
+            
+        print(f"\nGenerated SQL (Extracted/Parsed):\n{sql}\n")
+        
+        if not sql.strip().upper().startswith("SELECT"):
+            raise Exception("Failed to extract a valid SELECT statement from the response.")
+            
         return jsonify({"success": True, "generatedSQL": sql})
     except Exception as e:
         import traceback
@@ -253,7 +286,7 @@ def summarize():
         if not gemini_api_key:
             raise Exception("GEMINI_API_KEY is not set.")
             
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-3.5-flash')
         prompt = f"Summarize these database query results in 1-2 simple sentences.\nQuestion: {question}\nData: {json.dumps(rows[:3])}"
         response = model.generate_content(prompt)
         

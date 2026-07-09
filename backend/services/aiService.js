@@ -23,7 +23,8 @@ async function askAI(question) {
     return response.data.generatedSQL;
   } catch (err) {
     console.error("Vanna AI Error:", err.response?.data || err.message);
-    throw new Error("Failed to generate SQL from Natural Language");
+    const errorDetails = err.response?.data?.message || err.message;
+    throw new Error(`Failed to generate SQL from Natural Language: ${errorDetails}`);
   }
 }
 
