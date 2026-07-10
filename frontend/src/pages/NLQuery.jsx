@@ -12,11 +12,11 @@ export default function NLQuery() {
 
   const sampleQueries = [
     "Show shirts under 1000",
-    "Show all blue shirts",
-    "Show pending orders",
+    "Show blue shirts",
+    "show Confirmed orders ",
     "Show all suppliers",
-    "Show unpaid invoices",
-    "Show winter jackets",
+    "Show paid bills",
+    "Show brown shirts",
   ];
 
   const handleSend = async (queryText) => {
