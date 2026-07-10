@@ -15,7 +15,21 @@ const typesenseClient = new Typesense.Client({
   connectionTimeoutSeconds: 2,
 });
 
-const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || "http://localhost:5000";
+// 👇 PUT IT HERE
+(async () => {
+  try {
+    const collections = await typesenseClient.collections().retrieve();
+
+    console.log("Collections:");
+    
+  } catch (err) {
+    console.error("Collections Error:");
+    console.error(err);
+  }
+})();
+
+const PYTHON_SERVICE_URL =
+  process.env.PYTHON_SERVICE_URL || "http://localhost:5000";
 
 async function askAI(question) {
   try {
@@ -45,22 +59,39 @@ async function getEmbedding(image, text) {
     });
     return response.data.embedding;
   } catch (err) {
-    console.error("OpenCLIP Error:", err.response?.data || err.message);
-    throw new Error("Failed to generate embedding");
+  
+
+  console.error("Message:", err.message);
+
+  if (err.response) {
+    console.error("Status:", err.response.status);
+    console.error("Data:", err.response.data);
   }
+
+  console.error(err);
+
+  throw new Error("Failed to generate embedding");
+}
 }
 
 async function searchTypesense(embedding) {
-  const searchParameters = {
-    q: "*",
-    vector_query: `embedding:([${embedding.join(',')}], k:12)`
-  };
-  
-  const searchResults = await typesenseClient.collections("products").documents().search(searchParameters);
-  
-  // Transform Typesense output to match what the frontend expects
-  return searchResults.hits.map(hit => hit.document);
+  // TEMPORARY TEST
+  const result = await typesenseClient
+    .collections("products")
+    .documents()
+    .search({
+      q: "blue",
+      query_by: "style_name,color,category"
+    });
+
+  console.log("Typesense Search Result:");
+  console.log(JSON.stringify(result, null, 2));
+
+  return result.hits.map(hit => hit.document);
 }
+
+
+
 
 module.exports = {
   askAI,

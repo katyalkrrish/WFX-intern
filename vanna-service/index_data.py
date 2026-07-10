@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+
+load_dotenv()
 import os
 import psycopg2
 import typesense
@@ -13,6 +16,13 @@ TYPESENSE_HOST = os.environ.get("TYPESENSE_HOST", "localhost")
 TYPESENSE_PORT = os.environ.get("TYPESENSE_PORT", "8108")
 TYPESENSE_PROTOCOL = os.environ.get("TYPESENSE_PROTOCOL", "http")
 TYPESENSE_API_KEY = os.environ.get("TYPESENSE_API_KEY", "xyz")
+
+print("========== TYPESENSE CONFIG ==========")
+print("HOST:", TYPESENSE_HOST)
+print("PORT:", TYPESENSE_PORT)
+print("PROTOCOL:", TYPESENSE_PROTOCOL)
+print("API KEY PRESENT:", bool(TYPESENSE_API_KEY))
+print("======================================")
 
 # Typesense Client
 client = typesense.Client({
@@ -124,9 +134,21 @@ def main():
         }
         documents.append(doc)
 
-    print(f"Indexing {len(documents)} products...")
-    client.collections['products'].documents.import_(documents, {'action': 'upsert'})
-    print("Indexing complete.")
+    BATCH_SIZE = 100
+
+    print(f"Indexing {len(documents)} products in batches...")
+
+    for i in range(0, len(documents), BATCH_SIZE):
+        batch = documents[i:i + BATCH_SIZE]
+
+        print(f"Uploading batch {i//BATCH_SIZE + 1} ({len(batch)} documents)...")
+
+        client.collections['products'].documents.import_(
+            batch,
+            {"action": "upsert"}
+        )
+
+    print("✅ Indexing complete.")
 
 if __name__ == "__main__":
     main()
