@@ -17,8 +17,6 @@ export default function NLQuery() {
     "Which supplier has the highest average order value?"
   ];
 
-  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
   const handleSend = async (queryText) => {
     const queryToSubmit = queryText || question;
     if (!queryToSubmit.trim()) return;
@@ -36,22 +34,16 @@ export default function NLQuery() {
     };
     
     setHistory((prev) => [...prev, newUserMessage]);
+    setLoadingStep("Generating SQL...");
+
+    const loadingTimer = setTimeout(() => {
+      setLoadingStep("Loading results...");
+    }, 2000);
 
     try {
-      // Dynamic AI processing micro-steps
-      setLoadingStep("Formulating query prompt...");
-      await sleep(600);
-      setLoadingStep("Generating SQL with OpenRouter GPT-4o-mini...");
-      await sleep(1000);
-      
       const response = await apiClient.post("/ai/query", {
         question: queryToSubmit
       });
-
-      setLoadingStep("Executing SQL on Supabase PostgreSQL...");
-      await sleep(600);
-      setLoadingStep("Generating AI summary...");
-      await sleep(500);
 
       const aiMessage = {
         id: crypto.randomUUID(),
@@ -71,6 +63,7 @@ export default function NLQuery() {
       };
       setHistory((prev) => [...prev, errorMessage]);
     } finally {
+      clearTimeout(loadingTimer);
       setLoading(false);
       setLoadingStep("");
     }

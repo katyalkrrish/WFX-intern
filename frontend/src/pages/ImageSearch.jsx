@@ -12,6 +12,7 @@ export default function ImageSearch() {
   const [results, setResults] = useState([]);
   const [searched, setSearched] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [searchError, setSearchError] = useState(null);
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -56,37 +57,34 @@ export default function ImageSearch() {
     setResults([]);
     setExtractedTags(null);
     setSearched(true);
+    setSearchError(null);
 
     try {
       let payload = {};
       if (imagePreview) {
-        setLoadingStep("Processing image base64...");
-        // Extract pure base64 and mime type
+        setLoadingStep("Processing image...");
         const commaIndex = imagePreview.indexOf(",");
         const base64Data = imagePreview.substring(commaIndex + 1);
         const mimeType = imagePreview.match(/data:(.*);base64/)[1];
-
-        setLoadingStep("Extracting fashion attributes with Gemini-2.5-Vision...");
+        setLoadingStep("Searching products...");
         payload = {
           image: base64Data,
           mimeType: mimeType
         };
       } else {
-        setLoadingStep("Parsing search query with GPT-4o-mini...");
+        setLoadingStep("Searching products...");
         payload = {
           q: textQuery
         };
       }
 
       const response = await apiClient.post("/ai/image-search", payload);
-      
-      setLoadingStep("Querying database & weighting catalog matches...");
       setExtractedTags(response.data.tags);
       setResults(response.data.data);
 
     } catch (err) {
       console.error("AI Image Search failed:", err);
-      alert("Error: " + (err.response?.data?.message || err.message || "Failed to search"));
+      setSearchError(err.response?.data?.message || err.message || "Search failed. Please try again.");
     } finally {
       setLoading(false);
       setLoadingStep("");
@@ -100,6 +98,7 @@ export default function ImageSearch() {
     setResults([]);
     setExtractedTags(null);
     setSearched(false);
+    setSearchError(null);
   };
 
   return (
@@ -202,8 +201,15 @@ export default function ImageSearch() {
         </div>
       )}
 
+      {/* Inline Error */}
+      {searchError && !loading && (
+        <div className="inline-search-error animate-fade-in">
+          <span>⚠ {searchError}</span>
+        </div>
+      )}
+
       {/* Results grid */}
-      {searched && !loading && (
+      {searched && !loading && !searchError && (
         <section className="search-results-section animate-fade-in">
           {/* Extracted tags list */}
           {extractedTags && (

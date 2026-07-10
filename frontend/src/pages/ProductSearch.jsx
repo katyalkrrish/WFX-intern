@@ -391,11 +391,11 @@ export default function ProductSearch() {
           {loadingResults ? (
             <div className="grid-loading">
               <Loader className="spinner" size={32} />
-              <p>Searching catalog...</p>
+              <p>Searching products...</p>
             </div>
           ) : products.length === 0 ? (
             <div className="no-results animate-fade-in">
-              <h3>No garments found</h3>
+              <h3>No products found</h3>
               <p>Try resetting the filters or broadening your search terms.</p>
             </div>
           ) : (
