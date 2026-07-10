@@ -11,10 +11,12 @@ export default function NLQuery() {
   const [error, setError] = useState(null);
 
   const sampleQueries = [
-    "Show me all cotton shirts supplied by ABC Textiles",
-    "Which buyers purchased garments above 220 GSM?",
-    "Show blue striped shirts",
-    "Which supplier has the highest average order value?"
+    "Show shirts under 1000",
+    "Show all blue shirts",
+    "Show pending orders",
+    "Show all suppliers",
+    "Show unpaid invoices",
+    "Show winter jackets",
   ];
 
   const handleSend = async (queryText) => {
