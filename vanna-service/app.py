@@ -18,9 +18,16 @@ CORS(app)
 device = "cpu"
 
 # 1. OpenCLIP Setup (Text-to-Image only for Phase 1)
-print("Loading OpenCLIP ViT-B-32 (Text Encoder)...")
-clip_model, _, _ = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai', device=device)
-clip_tokenizer = open_clip.get_tokenizer('ViT-B-32')
+clip_model = None
+clip_tokenizer = None
+
+def get_clip_model():
+    global clip_model, clip_tokenizer
+    if clip_model is None or clip_tokenizer is None:
+        print("Lazy loading OpenCLIP ViT-B-32 (Text Encoder)...")
+        clip_model, _, _ = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai', device=device)
+        clip_tokenizer = open_clip.get_tokenizer('ViT-B-32')
+    return clip_model, clip_tokenizer
 
 # 2. Vanna Setup using Official GoogleGeminiChat + ChromaDB
 class SimplifiedVanna(ChromaDB_VectorStore, OpenAI_Chat):
@@ -273,8 +280,9 @@ def embed():
     try:
         with torch.no_grad():
             if text_query:
-                text_tokens = clip_tokenizer([text_query]).to(device)
-                features = clip_model.encode_text(text_tokens)
+                model, tokenizer = get_clip_model()
+                text_tokens = tokenizer([text_query]).to(device)
+                features = model.encode_text(text_tokens)
             else:
                 return jsonify({"success": False, "message": "Provide text query for search (Phase 1 supports text-to-image only)"}), 400
                 
