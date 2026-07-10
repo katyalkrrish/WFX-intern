@@ -17,10 +17,7 @@ vanna==0.7.4
 chromadb>=1.0.0
 openai>=1.58.0
 
-# PyTorch (CPU-only, keeps image small on cloud)
-# Install via: pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-torch>=2.3.0
-torchvision>=0.18.0
+
 
 # OpenCLIP
 open-clip-torch>=2.26.1
