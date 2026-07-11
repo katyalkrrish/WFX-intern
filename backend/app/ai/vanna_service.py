@@ -60,7 +60,7 @@ def get_vn():
 
                         def __call__(self, input: Documents) -> Embeddings:
                             try:
-                                response = requests.post(self.api_url, headers=self.headers, json={"inputs": input}, timeout=30)
+                                response = requests.post(self.api_url, headers=self.headers, json={"inputs": input}, timeout=60)
                                 if response.status_code == 200:
                                     return response.json()
                                 else:
