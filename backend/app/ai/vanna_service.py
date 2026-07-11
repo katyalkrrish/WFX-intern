@@ -34,11 +34,21 @@ openrouter_api_key = os.environ.get("OPENROUTER_API_KEY")
 if not openrouter_api_key:
     print("WARNING: OPENROUTER_API_KEY is not set. Vanna SQL generation will fail.")
 
-vn = SimplifiedVanna(config={
-    "api_key": openrouter_api_key,
-    "model": "openai/gpt-4.1-mini",
-    "path": "./vanna_chroma_db_v2"
-})
+_vn_instance = None
+_vn_lock = threading.Lock()
+
+def get_vn():
+    global _vn_instance
+    if _vn_instance is None:
+        with _vn_lock:
+            if _vn_instance is None:
+                print("Lazy loading Vanna and ChromaDB to save memory on startup...")
+                _vn_instance = SimplifiedVanna(config={
+                    "api_key": openrouter_api_key,
+                    "model": "openai/gpt-4.1-mini",
+                    "path": "./vanna_chroma_db_v2"
+                })
+    return _vn_instance
 
 def _do_train():
     try:
@@ -51,11 +61,12 @@ def _do_train():
             cursor.execute(f"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '{table}'")
             columns = cursor.fetchall()
             ddl_str = f"CREATE TABLE {table} (" + ", ".join(f"{c[0]} {c[1]}" for c in columns) + ");"
-            print(f"  DDL: {table}")
+            vn = get_vn()
             vn.train(ddl=ddl_str)
 
         release_db_connection(conn)
 
+        vn = get_vn()
         vn.train(documentation="""
         The finished_goods table stores apparel inventory.
         Important columns:
@@ -74,6 +85,7 @@ def _do_train():
         Use LOWER(column)=LOWER(value) if exact matching is required.
         """)
 
+        vn = get_vn()
         vn.train(documentation="The buyers table contains customer information with columns: buyer_id, company_name, country, buyer_category.")
         vn.train(documentation="The suppliers table contains vendor information with columns: supplier_id, company_name, country, contact, lead_time_days, rating.")
         vn.train(documentation="The sales_orders table links buyers to finished_goods with columns: order_number, buyer, style_number, quantity, unit_price, shipment_date, status.")
@@ -108,6 +120,7 @@ def _do_train():
             ("Show all orders",                "SELECT * FROM sales_orders;"),
             ("Show pending orders",            "SELECT * FROM sales_orders WHERE LOWER(status)='pending';"),
         ]
+        vn = get_vn()
         for question, sql in examples:
             vn.train(question=question, sql=sql)
 
@@ -117,6 +130,7 @@ def _do_train():
 
 def _auto_train_if_empty():
     try:
+        vn = get_vn()
         td = vn.get_training_data()
         if td is None or len(td) == 0:
             t = threading.Thread(target=_do_train, daemon=True)
@@ -126,9 +140,14 @@ def _auto_train_if_empty():
     except Exception as exc:
         print("Could not check training data:", exc)
 
-_auto_train_if_empty()
+# Remove automatic call on import to save memory
+# _auto_train_if_empty()
 
 def generate_sql(question: str) -> str:
+    vn = get_vn()
+    # Trigger auto-train on first use if needed
+    t = threading.Thread(target=_auto_train_if_empty, daemon=True)
+    t.start()
     return vn.generate_sql(question=question)
 
 def summarize_results(question: str, rows: list) -> str:
