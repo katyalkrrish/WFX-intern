@@ -28,14 +28,6 @@ app.include_router(invoices.router, prefix="/api/invoices", tags=["invoices"])
 app.include_router(dashboard.router, prefix="/api", tags=["dashboard"])
 app.include_router(ai.router, prefix="/api", tags=["ai"])
 
-@app.on_event("startup")
-def preload_models():
-    import threading
-    from app.ai.clip_service import get_clip_model
-    print("Preloading CLIP model in background to avoid Vercel 60s timeouts...")
-    threading.Thread(target=get_clip_model, daemon=True).start()
-
-
 @app.get("/")
 def health_check():
     return {"status": "ok", "service": "WFX FastAPI Backend"}

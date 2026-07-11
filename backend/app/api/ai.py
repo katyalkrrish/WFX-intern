@@ -79,8 +79,10 @@ def image_search(req: ImageSearchRequest):
         raise HTTPException(status_code=400, detail="Provide text query for search (Phase 1 supports text-to-image only)")
 
     try:
-        embedding = generate_embedding(req.q)
-        results = search_products(text_query=req.q, embedding=embedding)
+        # We bypass generate_embedding(req.q) on Free Tiers because loading 
+        # PyTorch MobileCLIP2 takes > 60s and starves the 0.1 CPU limit.
+        # Typesense instantly falls back to highly-accurate text-based search.
+        results = search_products(text_query=req.q, embedding=None)
         
         return {
             "success": True,
