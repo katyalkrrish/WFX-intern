@@ -20,6 +20,7 @@ def get_vn():
                 
                 from vanna.chromadb import ChromaDB_VectorStore
                 from vanna.openai import OpenAI_Chat
+                from chromadb.utils import embedding_functions
                 
                 class SimplifiedVanna(ChromaDB_VectorStore, OpenAI_Chat):
                     def __init__(self, config=None):
@@ -45,10 +46,22 @@ def get_vn():
                         else:
                             return super().submit_prompt(prompt, **kwargs)
 
+                hf_token = os.environ.get("HF_TOKEN")
+                ef = None
+                if hf_token:
+                    print("Using HuggingFace API for embeddings to save memory!")
+                    ef = embedding_functions.HuggingFaceEmbeddingFunction(
+                        api_key=hf_token,
+                        model_name="sentence-transformers/all-MiniLM-L6-v2"
+                    )
+                else:
+                    print("WARNING: HF_TOKEN not set. Falling back to local ONNX (may OOM on Render).")
+
                 _vn_instance = SimplifiedVanna(config={
                     "api_key": openrouter_api_key,
                     "model": "openai/gpt-4.1-mini",
-                    "path": "./vanna_chroma_db_v2"
+                    "path": "./vanna_chroma_db_v2",
+                    "embedding_function": ef
                 })
     return _vn_instance
 
