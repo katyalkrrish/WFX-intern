@@ -1,7 +1,4 @@
 import threading
-import torch
-import open_clip
-
 CLIP_MODEL_NAME = "MobileCLIP2-S0"
 CLIP_PRETRAINED  = "dfndr2b"
 device = "cpu"
@@ -16,6 +13,8 @@ def get_clip_model():
     if _clip_model is None:
         with _clip_lock:
             if _clip_model is None:
+                import torch
+                import open_clip
                 print(f"Lazy loading {CLIP_MODEL_NAME} ({CLIP_PRETRAINED})...")
                 _clip_model, _, _ = open_clip.create_model_and_transforms(
                     CLIP_MODEL_NAME, pretrained=CLIP_PRETRAINED, device=device
@@ -26,6 +25,7 @@ def get_clip_model():
     return _clip_model, _clip_tokenizer
 
 def generate_embedding(text_query: str) -> list[float]:
+    import torch
     model, tokenizer = get_clip_model()
     with torch.inference_mode():
         tokens = tokenizer([text_query]).to(device)

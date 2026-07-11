@@ -2,33 +2,7 @@ import os
 import json
 import threading
 import openai
-from vanna.chromadb import ChromaDB_VectorStore
-from vanna.openai import OpenAI_Chat
 from app.database.db import get_db_connection, release_db_connection
-
-class SimplifiedVanna(ChromaDB_VectorStore, OpenAI_Chat):
-    def __init__(self, config=None):
-        ChromaDB_VectorStore.__init__(self, config=config)
-        OpenAI_Chat.__init__(self, config=config)
-        self.or_client = openai.OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=config.get("api_key"),
-        )
-        self.model_name = config.get("model")
-
-    def submit_prompt(self, prompt, **kwargs) -> str:
-        if isinstance(prompt, list):
-            print(f"\nSQL Prompt (OpenAI Format):\n{json.dumps(prompt, indent=2)}\n")
-            response = self.or_client.chat.completions.create(
-                model=self.model_name,
-                messages=prompt,
-                temperature=self.temperature
-            )
-            text = response.choices[0].message.content
-            print(f"\nLLM Response:\n{text}\n")
-            return text
-        else:
-            return super().submit_prompt(prompt, **kwargs)
 
 openrouter_api_key = os.environ.get("OPENROUTER_API_KEY")
 if not openrouter_api_key:
@@ -43,6 +17,34 @@ def get_vn():
         with _vn_lock:
             if _vn_instance is None:
                 print("Lazy loading Vanna and ChromaDB to save memory on startup...")
+                
+                from vanna.chromadb import ChromaDB_VectorStore
+                from vanna.openai import OpenAI_Chat
+                
+                class SimplifiedVanna(ChromaDB_VectorStore, OpenAI_Chat):
+                    def __init__(self, config=None):
+                        ChromaDB_VectorStore.__init__(self, config=config)
+                        OpenAI_Chat.__init__(self, config=config)
+                        self.or_client = openai.OpenAI(
+                            base_url="https://openrouter.ai/api/v1",
+                            api_key=config.get("api_key"),
+                        )
+                        self.model_name = config.get("model")
+
+                    def submit_prompt(self, prompt, **kwargs) -> str:
+                        if isinstance(prompt, list):
+                            print(f"\\nSQL Prompt (OpenAI Format):\\n{json.dumps(prompt, indent=2)}\\n")
+                            response = self.or_client.chat.completions.create(
+                                model=self.model_name,
+                                messages=prompt,
+                                temperature=self.temperature
+                            )
+                            text = response.choices[0].message.content
+                            print(f"\\nLLM Response:\\n{text}\\n")
+                            return text
+                        else:
+                            return super().submit_prompt(prompt, **kwargs)
+
                 _vn_instance = SimplifiedVanna(config={
                     "api_key": openrouter_api_key,
                     "model": "openai/gpt-4.1-mini",
