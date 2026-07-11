@@ -10,9 +10,15 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Create a non-root user required by HF Spaces
+RUN useradd -m -u 1000 user
 
-ENV PORT=8000
-EXPOSE 8000
+# Copy files and set permissions BEFORE switching user
+COPY --chown=user:user . .
+
+USER user
+
+ENV PORT=7860
+EXPOSE 7860
 
 CMD ["python", "-m", "app.main"]
