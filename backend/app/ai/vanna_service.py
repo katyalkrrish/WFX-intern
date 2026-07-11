@@ -139,8 +139,8 @@ def _auto_train_if_empty():
         vn = get_vn()
         td = vn.get_training_data()
         if td is None or len(td) == 0:
-            t = threading.Thread(target=_do_train, daemon=True)
-            t.start()
+            print("Starting synchronous auto-train...")
+            _do_train()
         else:
             print(f"ChromaDB already has {len(td)} training rows — skipping auto-train.")
     except Exception as exc:
@@ -152,8 +152,7 @@ def _auto_train_if_empty():
 def generate_sql(question: str) -> str:
     vn = get_vn()
     # Trigger auto-train on first use if needed
-    t = threading.Thread(target=_auto_train_if_empty, daemon=True)
-    t.start()
+    _auto_train_if_empty()
     return vn.generate_sql(question=question)
 
 def summarize_results(question: str, rows: list) -> str:
