@@ -46,33 +46,37 @@ def get_vn():
                         else:
                             return super().submit_prompt(prompt, **kwargs)
 
-                hf_token = os.environ.get("HF_TOKEN")
+                or_token = os.environ.get("OPENROUTER_API_KEY")
                 ef = None
-                if hf_token:
-                    print("Using HuggingFace API for embeddings (via requests) to save memory!")
+                if or_token:
+                    print("Using OpenRouter API for embeddings to completely bypass Hugging Face DNS issues!")
                     import requests
                     from chromadb.api.types import EmbeddingFunction, Documents, Embeddings
                     
-                    class RequestsHuggingFaceEmbeddingFunction(EmbeddingFunction):
+                    class OpenRouterEmbeddingFunction(EmbeddingFunction):
                         def __init__(self, api_key: str):
-                            self.api_url = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
+                            self.api_url = "https://openrouter.ai/api/v1/embeddings"
                             self.headers = {"Authorization": f"Bearer {api_key}"}
 
                         def __call__(self, input: Documents) -> Embeddings:
                             try:
-                                response = requests.post(self.api_url, headers=self.headers, json={"inputs": input}, timeout=60)
+                                response = requests.post(self.api_url, headers=self.headers, json={
+                                    "model": "openai/text-embedding-3-small",
+                                    "input": input
+                                }, timeout=60)
                                 if response.status_code == 200:
-                                    return response.json()
+                                    return [data["embedding"] for data in response.json()["data"]]
                                 else:
-                                    print("HF API Error:", response.text)
-                                    return [[] for _ in input]
+                                    print("OpenRouter API Error:", response.text)
+                                    # Fallback to zeros if it fails so it doesn't crash Chroma
+                                    return [[0.0] * 1536 for _ in input]
                             except Exception as e:
-                                print(f"HF API Exception: {e}")
-                                return [[] for _ in input]
+                                print(f"OpenRouter API Exception: {e}")
+                                return [[0.0] * 1536 for _ in input]
 
-                    ef = RequestsHuggingFaceEmbeddingFunction(api_key=hf_token)
+                    ef = OpenRouterEmbeddingFunction(api_key=or_token)
                 else:
-                    print("WARNING: HF_TOKEN not set. Falling back to local ONNX (may OOM on Render).")
+                    print("WARNING: OPENROUTER_API_KEY not set. Falling back to local ONNX (may OOM on Render).")
 
                 _vn_instance = SimplifiedVanna(config={
                     "api_key": openrouter_api_key,
