@@ -17,7 +17,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     apiClient
-      .get("/dashboard")
+      .get("/stats")
       .then((res) => {
         setStats(res.data);
         setLoading(false);

@@ -43,7 +43,7 @@ export default function NLQuery() {
     }, 2000);
 
     try {
-      const response = await apiClient.post("/ai/query", {
+      const response = await apiClient.post("/ask", {
         question: queryToSubmit
       });
 

@@ -1,0 +1,30 @@
+# Web Framework
+fastapi>=0.100.0
+uvicorn[standard]>=0.22.0
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+
+# Database
+psycopg2-binary>=2.9.10
+supabase>=2.3.0
+
+# AI / NL2SQL
+vanna==0.7.4
+chromadb>=1.0.0
+openai>=1.58.0
+
+# OpenCLIP
+open-clip-torch>=2.26.1
+timm>=1.0.11
+transformers>=4.41.0
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Scientific / Data
+numpy>=1.26.4
+pandas>=2.2.2
+Pillow>=10.4.0
+requests>=2.32.0
+
+# Typesense vector search
+typesense>=0.21.0

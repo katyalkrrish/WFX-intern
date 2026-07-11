@@ -20,7 +20,7 @@ export default function ImageSearch() {
     setSearchError(null);
 
     try {
-      const response = await apiClient.post("/ai/image-search", { q: textQuery });
+      const response = await apiClient.post("/search-image", { q: textQuery });
       setExtractedTags(response.data.tags);
       setResults(response.data.data);
     } catch (err) {

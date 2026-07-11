@@ -1,2 +1,7 @@
-node_modules
+__pycache__/
+*.pyc
+venv/
 .env
+vanna_chroma_db/
+vanna_chroma_db_v2/
+.pytest_cache/
