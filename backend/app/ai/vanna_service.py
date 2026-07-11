@@ -49,11 +49,28 @@ def get_vn():
                 hf_token = os.environ.get("HF_TOKEN")
                 ef = None
                 if hf_token:
-                    print("Using HuggingFace API for embeddings to save memory!")
-                    ef = embedding_functions.HuggingFaceEmbeddingFunction(
-                        api_key=hf_token,
-                        model_name="sentence-transformers/all-MiniLM-L6-v2"
-                    )
+                    print("Using HuggingFace API for embeddings (via requests) to save memory!")
+                    import requests
+                    from chromadb.api.types import EmbeddingFunction, Documents, Embeddings
+                    
+                    class RequestsHuggingFaceEmbeddingFunction(EmbeddingFunction):
+                        def __init__(self, api_key: str):
+                            self.api_url = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
+                            self.headers = {"Authorization": f"Bearer {api_key}"}
+
+                        def __call__(self, input: Documents) -> Embeddings:
+                            try:
+                                response = requests.post(self.api_url, headers=self.headers, json={"inputs": input}, timeout=30)
+                                if response.status_code == 200:
+                                    return response.json()
+                                else:
+                                    print("HF API Error:", response.text)
+                                    return [[] for _ in input]
+                            except Exception as e:
+                                print(f"HF API Exception: {e}")
+                                return [[] for _ in input]
+
+                    ef = RequestsHuggingFaceEmbeddingFunction(api_key=hf_token)
                 else:
                     print("WARNING: HF_TOKEN not set. Falling back to local ONNX (may OOM on Render).")
 
