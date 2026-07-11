@@ -28,10 +28,10 @@ An AI-native ERP exploration platform built for the apparel industry that enable
 - Persistent Light/Dark Theme
 
 ## Backend
-- Node.js
-- Express.js
-- PostgreSQL (pg)
-- Supabase JavaScript Client
+- Python (FastAPI)
+- Uvicorn
+- PostgreSQL (psycopg2)
+- Supabase Python Client
 
 ## Database
 - Supabase PostgreSQL
@@ -39,8 +39,8 @@ An AI-native ERP exploration platform built for the apparel industry that enable
 
 ## AI Integrations
 - Vanna AI (Natural Language to SQL)
-- OpenCLIP ViT-B-32 (Image Embeddings)
-- Local lightweight LLMs for summarization
+- OpenCLIP MobileCLIP2-S0 (Image Embeddings, highly memory optimized)
+- OpenRouter API for LLM summarization and NL2SQL generation
 
 ---
 
@@ -50,14 +50,14 @@ An AI-native ERP exploration platform built for the apparel industry that enable
                  React (Vite)
                        │
                        ▼
-               Express.js Backend
-              ┌────────┴────────┐
-              │                 │
-              ▼                 ▼
-        Vanna Service      PostgreSQL
-       (Python Flask,      (Supabase)
-       Typesense, 
-       OpenCLIP)
+                 FastAPI Backend
+               ┌───────┴───────┐
+               │               │
+               ▼               ▼
+          AI Services      PostgreSQL
+         (Vanna AI,       (Supabase)
+          OpenCLIP, 
+          Typesense)
 ```
 
 ---
@@ -95,11 +95,11 @@ Workflow:
 User Question
       │
       ▼
-Vanna AI (Python Service)
+FastAPI Backend (Vanna AI)
       │
 Generated SQL
       │
-Express Validates & Executes
+FastAPI Validates & Executes
       │
 Interactive Result Table
 ```
@@ -147,9 +147,9 @@ Workflow:
 Image / Description
         │
         ▼
-OpenCLIP (Python Service)
+FastAPI Backend (OpenCLIP)
         │
-Vector Embedding (ViT-B-32)
+Vector Embedding (MobileCLIP2-S0)
         │
 Search Typesense
         │
@@ -195,80 +195,47 @@ The application implements several security best practices:
 
 # API Endpoints
 
+All API endpoints are prefixed with `/api`.
+
 ## Dashboard
-
 ```
-GET /dashboard
+GET /api/stats
 ```
-
-Returns business analytics and dashboard metrics.
-
----
 
 ## Buyers
-
 ```
-GET /buyers
+GET /api/buyers
 ```
-
-Returns all buyers.
-
----
 
 ## Suppliers
-
 ```
-GET /suppliers
+GET /api/suppliers
 ```
-
-Returns all suppliers.
-
----
 
 ## Products
-
 ```
-GET /products
-GET /products/search
-GET /products/filters
-GET /products/:styleNumber
+GET /api/products
+GET /api/products/search
+GET /api/products/filters
+GET /api/products/:styleNumber
 ```
-
-Supports advanced product exploration.
-
----
 
 ## Orders
-
 ```
-GET /orders
+GET /api/orders
 ```
-
-Returns all sales orders.
-
----
 
 ## Invoices
-
 ```
-GET /invoices
+GET /api/invoices
 ```
-
-Returns all invoices.
-
----
 
 ## AI
-
 ```
-POST /ai/query
-POST /ai/image-search
+POST /api/ask
+POST /api/search-image
+POST /api/train
 ```
-
-Supports:
-
-- Natural Language to SQL
-- AI-powered Image Search
 
 ---
 
@@ -290,68 +257,42 @@ Navigate to backend:
 cd backend
 ```
 
-Install dependencies:
+Create a virtual environment and install dependencies:
 
 ```bash
-npm install
+python -m venv venv
+.\venv\Scripts\activate  # On Windows
+pip install -r requirements.txt
 ```
 
-Create a `.env` file:
+Create a `.env` file in the `backend` directory:
 
 ```env
+# Supabase / PostgreSQL
 SUPABASE_URL=https://<your-project>.supabase.co
 SUPABASE_SECRET_KEY=<your-secret-key>
 DATABASE_URL=postgresql://postgres.<project-ref>:<password>@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres
-TYPESENSE_API_KEY=<your-typesense-key>
+
+# OpenRouter / Vanna
+OPENROUTER_API_KEY=<your-openrouter-key>
+
+# Typesense
 TYPESENSE_HOST=<your-typesense-host>
-PYTHON_SERVICE_URL=http://localhost:5000
+TYPESENSE_PORT=<your-typesense-port>
+TYPESENSE_PROTOCOL=https
+TYPESENSE_API_KEY=<your-typesense-key>
 ```
 
-Run backend:
+Run the backend server:
 
 ```bash
-npm run dev
+python -m uvicorn app.main:app --reload --port 8000
 ```
 
 Backend runs on:
 
 ```text
-http://localhost:3000
-```
-
----
-
-## Python Microservice (Vanna AI & OpenCLIP) Setup
-
-Navigate to service:
-
-```bash
-cd vanna-service
-```
-
-Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-Run indexing script to populate Typesense:
-
-```bash
-# Ensure DATABASE_URL and TYPESENSE env vars are set
-python index_data.py
-```
-
-Run service:
-
-```bash
-python app.py
-```
-
-Service runs on:
-
-```text
-http://localhost:5000
+http://localhost:8000
 ```
 
 ---
@@ -390,19 +331,17 @@ http://localhost:5173
 WFX-AI-ERP/
 │
 ├── backend/
-│   ├── config/
-│   ├── controllers/
-│   ├── routes/
-│   ├── services/
-│   └── server.js
+│   ├── app/
+│   │   ├── ai/          # OpenCLIP, Vanna, Typesense logic
+│   │   ├── api/         # FastAPI Routes
+│   │   ├── database/    # DB connections
+│   │   └── main.py      # Entry point
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   └── railway.json
 │
 ├── frontend/
-│   ├── src/
-│
-├── vanna-service/
-│   ├── app.py
-│   ├── index_data.py
-│   └── requirements.txt
+│   └── src/
 │
 ├── README.md
 └── .gitignore
@@ -410,38 +349,6 @@ WFX-AI-ERP/
 
 ---
 
-# Environment Variables
-
-Backend requires:
-
-```env
-SUPABASE_URL
-SUPABASE_SECRET_KEY
-DATABASE_URL
-TYPESENSE_API_KEY
-TYPESENSE_HOST
-PYTHON_SERVICE_URL
-```
-
-Python Service requires:
-
-```env
-DATABASE_URL
-TYPESENSE_API_KEY
-TYPESENSE_HOST
-GEMINI_API_KEY
-```
-
----
-## Live Demo
-
-Frontend:
-https://wfx-intern.vercel.app/
-
-Backend:
-https://wfx-intern.onrender.com
-
----
 # Future Enhancements
 
 Potential improvements include:
