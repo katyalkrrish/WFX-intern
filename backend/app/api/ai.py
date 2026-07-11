@@ -3,7 +3,7 @@ from pydantic import BaseModel
 import re
 
 from app.ai.clip_service import generate_embedding
-from app.ai.vanna_service import generate_sql, summarize_results, _do_train, vn
+from app.ai.vanna_service import generate_sql, summarize_results, _do_train, get_vn
 from app.ai.typesense_service import search_products
 from app.database.db import execute_query
 
@@ -113,6 +113,7 @@ def summarize_endpoint(req: SummarizeRequest):
 def train_endpoint():
     try:
         _do_train()
+        vn = get_vn()
         td = vn.get_training_data()
         ddl_cnt  = len(td[td["training_data_type"] == "ddl"]) if td is not None else 0
         doc_cnt  = len(td[td["training_data_type"] == "documentation"]) if td is not None else 0
