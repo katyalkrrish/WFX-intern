@@ -80,7 +80,7 @@ def get_vn():
 
                 _vn_instance = SimplifiedVanna(config={
                     "api_key": openrouter_api_key,
-                    "model": "openai/gpt-4.1-mini",
+                    "model": "openai/gpt-4o-mini",
                     "path": "./vanna_chroma_db_v2",
                     "embedding_function": ef
                 })
@@ -127,38 +127,8 @@ def _do_train():
         vn.train(documentation="The sales_orders table links buyers to finished_goods with columns: order_number, buyer, style_number, quantity, unit_price, shipment_date, status.")
         vn.train(documentation="The sales_invoices table links to sales_orders for payment tracking with columns: invoice_number, sales_order, amount, currency, payment_status.")
 
-        examples = [
-            ("Show all blue shirts",           "SELECT * FROM finished_goods WHERE LOWER(category)='shirt' AND LOWER(color)='blue';"),
-            ("Show blue striped shirts",        "SELECT * FROM finished_goods WHERE LOWER(category)='shirt' AND LOWER(color)='blue' AND LOWER(print)='striped';"),
-            ("Show all hoodies",               "SELECT * FROM finished_goods WHERE LOWER(category)='hoodie';"),
-            ("Show black hoodies",             "SELECT * FROM finished_goods WHERE LOWER(category)='hoodie' AND LOWER(color)='black';"),
-            ("Show denim products",            "SELECT * FROM finished_goods WHERE LOWER(fabric)='denim';"),
-            ("Show cotton shirts",             "SELECT * FROM finished_goods WHERE LOWER(category)='shirt' AND LOWER(fabric)='cotton';"),
-            ("Show products under 1000",       "SELECT * FROM finished_goods WHERE selling_price < 1000;"),
-            ("Show products above 3000",       "SELECT * FROM finished_goods WHERE selling_price > 3000;"),
-            ("Show Nike products",             "SELECT * FROM finished_goods WHERE LOWER(brand)='nike';"),
-            ("Show Adidas hoodies",            "SELECT * FROM finished_goods WHERE LOWER(brand)='adidas' AND LOWER(category)='hoodie';"),
-            ("Show summer collection",         "SELECT * FROM finished_goods WHERE LOWER(season)='summer';"),
-            ("Show winter jackets",            "SELECT * FROM finished_goods WHERE LOWER(category)='jacket' AND LOWER(season)='winter';"),
-            ("Show products supplied by ABC Textiles", "SELECT * FROM finished_goods WHERE supplier ILIKE '%ABC Textiles%';"),
-            ("Count all shirts",               "SELECT COUNT(*) FROM finished_goods WHERE LOWER(category)='shirt';"),
-            ("Average selling price of shirts","SELECT AVG(selling_price) FROM finished_goods WHERE LOWER(category)='shirt';"),
-            ("Most expensive product",         "SELECT * FROM finished_goods ORDER BY selling_price DESC LIMIT 1;"),
-            ("Cheapest product",               "SELECT * FROM finished_goods ORDER BY selling_price ASC LIMIT 1;"),
-            ("Top 10 expensive products",      "SELECT * FROM finished_goods ORDER BY selling_price DESC LIMIT 10;"),
-            ("List all brands",                "SELECT DISTINCT brand FROM finished_goods ORDER BY brand;"),
-            ("List all categories",            "SELECT DISTINCT category FROM finished_goods ORDER BY category;"),
-            ("Show all buyers",                "SELECT * FROM buyers;"),
-            ("Show buyers from Canada",        "SELECT * FROM buyers WHERE LOWER(country)='canada';"),
-            ("Show all suppliers",             "SELECT * FROM suppliers;"),
-            ("Total revenue",                  "SELECT SUM(amount) as total_revenue FROM sales_invoices;"),
-            ("Show unpaid invoices",           "SELECT * FROM sales_invoices WHERE LOWER(payment_status)='unpaid';"),
-            ("Show all orders",                "SELECT * FROM sales_orders;"),
-            ("Show pending orders",            "SELECT * FROM sales_orders WHERE LOWER(status)='pending';"),
-        ]
-        vn = get_vn()
-        for question, sql in examples:
-            vn.train(question=question, sql=sql)
+        # Examples removed to prevent 60s sequential timeout on initial boot.
+        # DDL and documentation is sufficient for gpt-4o-mini to generate correct SQL.
 
         print("Auto-train complete.")
     except Exception as exc:
@@ -199,7 +169,7 @@ def summarize_results(question: str, rows: list) -> str:
             f"Question: {question}\nData: {json.dumps(rows[:3], default=str)}"
         )
         response = client.chat.completions.create(
-            model="openai/gpt-4.1-mini",
+            model="openai/gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}]
         )
         return response.choices[0].message.content.strip()
