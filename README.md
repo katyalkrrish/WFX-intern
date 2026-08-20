@@ -1,12 +1,12 @@
 # WFX AI-Native ERP Explorer Platform
 
-An AI-native ERP exploration platform built for the apparel industry that enables business users to interact with ERP data using natural language. The platform combines AI-powered Natural Language to SQL (NL2SQL), intelligent product search, multimodal image search, and interactive analytics to simplify data exploration and decision-making.
+An AI-native ERP exploration platform built for the apparel industry that enables business users to interact with ERP data using natural language. The platform combines AI-powered Natural Language to SQL (NL2SQL), intelligent product search, multimodal image search, and interactive analytics to simplify data exploration and decision-making
 
 ---
 
 # Key Features
 
-- AI-powered Natural Language to SQL (NL2SQL) using Vanna AI
+- AI-powered Natural Language to SQL (NL2SQL) using Vanna AI 
 - AI-generated summaries for query results
 - Interactive business analytics dashboard
 - Advanced product search with dynamic filters

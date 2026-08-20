@@ -76,7 +76,7 @@ export default function Dashboard() {
     };
   });
 
-  const getCoordinatesForPercent = (percent) => {
+  const CoordinatesForPercengett = (percent) => {
     const x = Math.cos(2 * Math.PI * percent);
     const y = Math.sin(2 * Math.PI * percent);
     return [x, y];
