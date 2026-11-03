@@ -1,6 +1,6 @@
 # WFX AI-Native ERP Explorer Platform
 
-An AI-native ERP exploration platform built for the apparel industry that enables business users to interact with ERP data using natural language. The platform combines AI-powered Natural Language to SQL (NL2SQL), intelligent product search, multimodal image search, and interactive analytics to simplify data exploration and decision-making
+An AI-native ERP exploration platform built for the apparel industry that enables business users to interact with ERP data using natural language. The platform combines AI-powered Natural Language to SQL (NL2SQL), structured product search, and interactive analytics to simplify data exploration and decision-making.
 
 ---
 
@@ -10,7 +10,6 @@ An AI-native ERP exploration platform built for the apparel industry that enable
 - AI-generated summaries for query results
 - Interactive business analytics dashboard
 - Advanced product search with dynamic filters
-- AI-powered image search using OpenCLIP and Typesense vector search
 - Finished Goods Explorer with Tech Pack details
 - Responsive user interface with Light/Dark mode support
 - PostgreSQL database hosted on Supabase
@@ -35,11 +34,9 @@ An AI-native ERP exploration platform built for the apparel industry that enable
 
 ## Database
 - Supabase PostgreSQL
-- Typesense (Vector Search Engine)
 
 ## AI Integrations
 - Vanna AI (Natural Language to SQL)
-- OpenCLIP MobileCLIP2-S0 (Image Embeddings, highly memory optimized)
 - OpenRouter API for LLM summarization and NL2SQL generation
 
 ---
@@ -56,8 +53,7 @@ An AI-native ERP exploration platform built for the apparel industry that enable
                ▼               ▼
           AI Services      PostgreSQL
          (Vanna AI,       (Supabase)
-          OpenCLIP, 
-          Typesense)
+          OpenRouter)
 ```
 
 ---
@@ -137,29 +133,6 @@ Features:
 
 ---
 
-## AI Image Search
-
-Supports both image upload and natural language descriptions.
-
-Workflow:
-
-```text
-Image / Description
-        │
-        ▼
-FastAPI Backend (OpenCLIP)
-        │
-Vector Embedding (MobileCLIP2-S0)
-        │
-Search Typesense
-        │
-Rank Similar Products
-```
-
-Products are matched based on cosine similarity of their image/text embeddings.
-
----
-
 ## Finished Goods Explorer
 
 A catalog explorer for apparel products.
@@ -185,13 +158,30 @@ Tech Pack includes:
 The application implements several security best practices:
 
 - API keys stored securely using environment variables
-- Backend-only access to Typesense and Supabase credentials
+- Backend-only access to Supabase credentials
 - AI-generated SQL restricted to SELECT statements
 - Generated SQL validated before execution
 - CORS enabled for frontend-backend communication
 - Sensitive credentials excluded from version control
+- Supabase email/password authentication with Bearer-token validation on protected API routes
 
----
+## Authentication Setup
+
+The frontend uses Supabase Auth for email/password sign-up and sign-in. Add the following variables to the frontend hosting environment before building:
+
+```env
+VITE_SUPABASE_URL=https://<your-project>.supabase.co
+VITE_SUPABASE_ANON_KEY=<your-supabase-anon-key>
+VITE_API_BASE_URL=https://<your-backend-domain>/api
+```
+
+Set the backend environment variable to the exact URL of the deployed frontend:
+
+```env
+FRONTEND_ORIGINS=https://<your-frontend-domain>
+```
+
+Keep `SUPABASE_SECRET_KEY` on the backend only. In Supabase Auth settings, configure the frontend URL as an approved redirect URL and choose whether users must confirm their email before their first sign-in.
 
 # API Endpoints
 
@@ -233,7 +223,6 @@ GET /api/invoices
 ## AI
 ```
 POST /api/ask
-POST /api/search-image
 POST /api/train
 ```
 
@@ -276,11 +265,6 @@ DATABASE_URL=postgresql://postgres.<project-ref>:<password>@aws-0-ap-southeast-1
 # OpenRouter / Vanna
 OPENROUTER_API_KEY=<your-openrouter-key>
 
-# Typesense
-TYPESENSE_HOST=<your-typesense-host>
-TYPESENSE_PORT=<your-typesense-port>
-TYPESENSE_PROTOCOL=https
-TYPESENSE_API_KEY=<your-typesense-key>
 ```
 
 Run the backend server:
@@ -332,7 +316,7 @@ WFX-AI-ERP/
 │
 ├── backend/
 │   ├── app/
-│   │   ├── ai/          # OpenCLIP, Vanna, Typesense logic
+│   │   ├── ai/          # Vanna AI logic
 │   │   ├── api/         # FastAPI Routes
 │   │   ├── database/    # DB connections
 │   │   └── main.py      # Entry point

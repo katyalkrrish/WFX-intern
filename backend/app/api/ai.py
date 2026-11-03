@@ -2,23 +2,13 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import re
 
-from app.ai.clip_service import generate_embedding
 from app.ai.vanna_service import generate_sql, summarize_results, _do_train, get_vn
-from app.ai.typesense_service import search_products
 from app.database.db import execute_query
 
 router = APIRouter()
 
 class AskRequest(BaseModel):
     question: str
-
-class ImageSearchRequest(BaseModel):
-    image: str = None
-    mimeType: str = None
-    q: str = None
-
-class EmbedRequest(BaseModel):
-    text: str
 
 class SummarizeRequest(BaseModel):
     question: str
@@ -70,35 +60,6 @@ def ask_question(req: AskRequest):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/search-image")
-def image_search(req: ImageSearchRequest):
-    if not req.q:
-        raise HTTPException(status_code=400, detail="Provide text query for search (Phase 1 supports text-to-image only)")
-
-    try:
-        # We bypass generate_embedding(req.q) on Free Tiers because loading 
-        # PyTorch MobileCLIP2 takes > 60s and starves the 0.1 CPU limit.
-        # Typesense instantly falls back to highly-accurate text-based search.
-        results = search_products(text_query=req.q, embedding=None)
-        
-        return {
-            "success": True,
-            "tags": {"keywords": req.q},
-            "data": results,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/embed")
-def embed_text(req: EmbedRequest):
-    try:
-        embedding = generate_embedding(req.text)
-        return {"success": True, "embedding": embedding}
-    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 

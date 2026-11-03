@@ -1,23 +1,21 @@
-import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   MessageSquare,
   Search,
-  Image as ImageIcon,
   Compass,
   Sun,
-  Moon
+  Moon,
+  LogOut
 } from "lucide-react";
 
-export default function Sidebar({ theme, toggleTheme }) {
+export default function Sidebar({ theme, toggleTheme, userEmail, onSignOut }) {
   const location = useLocation();
 
   const menuItems = [
     { path: "/", label: "Dashboard", icon: LayoutDashboard },
     { path: "/query", label: "AI Chat Query", icon: MessageSquare },
     { path: "/search", label: "Product Search", icon: Search },
-    { path: "/image-search", label: "Image Search", icon: ImageIcon },
     { path: "/explorer", label: "Goods Explorer", icon: Compass }
   ];
 
@@ -50,6 +48,7 @@ export default function Sidebar({ theme, toggleTheme }) {
       </nav>
 
       <div className="sidebar-footer">
+        <div className="user-email" title={userEmail}>{userEmail}</div>
         <button className="theme-toggle" onClick={toggleTheme} title="Toggle Theme">
           {theme === "light" ? (
             <>
@@ -62,6 +61,10 @@ export default function Sidebar({ theme, toggleTheme }) {
               <span>Light Mode</span>
             </>
           )}
+        </button>
+        <button className="theme-toggle signout-button" onClick={onSignOut}>
+          <LogOut size={18} />
+          <span>Sign out</span>
         </button>
         <div className="version-tag">v1.0.0</div>
       </div>

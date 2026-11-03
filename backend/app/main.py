@@ -1,7 +1,8 @@
 import os
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from app.auth import require_user
 
 load_dotenv()
 
@@ -13,20 +14,21 @@ app = FastAPI(title="WFX API", description="Unified FastAPI Backend")
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, restrict this to frontend domains
+    allow_origins=[origin.strip() for origin in os.environ.get("FRONTEND_ORIGINS", "http://localhost:5173").split(",")],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Register routers
-app.include_router(buyers.router, prefix="/api/buyers", tags=["buyers"])
-app.include_router(suppliers.router, prefix="/api/suppliers", tags=["suppliers"])
-app.include_router(products.router, prefix="/api/products", tags=["products"])
-app.include_router(orders.router, prefix="/api/orders", tags=["orders"])
-app.include_router(invoices.router, prefix="/api/invoices", tags=["invoices"])
-app.include_router(dashboard.router, prefix="/api", tags=["dashboard"])
-app.include_router(ai.router, prefix="/api", tags=["ai"])
+protected = [Depends(require_user)]
+app.include_router(buyers.router, prefix="/api/buyers", tags=["buyers"], dependencies=protected)
+app.include_router(suppliers.router, prefix="/api/suppliers", tags=["suppliers"], dependencies=protected)
+app.include_router(products.router, prefix="/api/products", tags=["products"], dependencies=protected)
+app.include_router(orders.router, prefix="/api/orders", tags=["orders"], dependencies=protected)
+app.include_router(invoices.router, prefix="/api/invoices", tags=["invoices"], dependencies=protected)
+app.include_router(dashboard.router, prefix="/api", tags=["dashboard"], dependencies=protected)
+app.include_router(ai.router, prefix="/api", tags=["ai"], dependencies=protected)
 
 @app.get("/")
 def health_check():
